@@ -131,7 +131,7 @@ def file_loading(filename, args, labels=True, signal=0):
     del pandas_file
     return features
 
-def k_fold_data_prep(args, k, direc_run, samples=None):
+def k_fold_data_prep(args, samples=None):
     data = file_loading(args.data_file, args)
     extra_bkg = file_loading(args.extrabkg_file, args, labels=False)
     if args.signal_file is not None: 
@@ -172,8 +172,7 @@ def k_fold_data_prep(args, k, direc_run, samples=None):
     elif args.mode=="IAD":
         samples_train = extra_bkg[40000:312858]
 
-    indices = np.roll(np.array(range(5)),k)
-
+    indices = np.roll(np.array(range(5)),args.fold_number)
 
     if args.mode=="cathode":
         print("cathode")
@@ -206,4 +205,6 @@ def k_fold_data_prep(args, k, direc_run, samples=None):
         samples_test, _ = normalisation.forward(samples_test)
     print("Train set: ", len(X_train), "; Test set: ", len(X_test))
 
-    return X_train, Y_train, X_test, Y_test
+    np.save(args.directory+"Y_test.npy", Y_test)
+
+    return X_train, Y_train, X_test, Y_test, samples_test

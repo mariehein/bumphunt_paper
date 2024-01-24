@@ -13,7 +13,7 @@ parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode"], req
 parser.add_argument('--fold_number', type=int, required=True)
 parser.add_argument('--window_number', type=int, required=True)
 parser.add_argument('--directory', type=str, required=True)
-parser.add_argument('--input_set', type=str, choices=["baseline","extended1","extended2","extended3"])
+parser.add_argument('--input_set', type=str, choices=["baseline","extended1","extended2","extended3"], required=True)
 
 #Data files
 parser.add_argument('--data_file', type=str, default="/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_v2.extratau_2.features.h5")
@@ -53,18 +53,18 @@ if args.three_pronged:
 	args.signal_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_Z_XY_qqq.extratau_2.features.h5"
 
 args.minmass = (args.window_number-5)*0.1+3.3
-args.minmass = (args.window_number-5)*0.1+3.7
+args.maxmass = (args.window_number-5)*0.1+3.7
 
 if args.mode=="IAD" and args.window_number!=5:
     raise ValueError("IAD currently only supported with window 5")
 
 print(args)
 
-X_train, Y_train, X_test, Y_test = dp.classifier_data_prep(args)
+X_train, Y_train, X_test, Y_test, samples_test = dp.k_fold_data_prep(args)
 for i in range(args.start_at_run, args.N_runs):
     print()
     print("------------------------------------------------------")
     print()
     print("Classifier run no. ", i)
     print()
-    BDT.classifier_training(X_train, Y_train, X_test, Y_test, args)
+    BDT.classifier_training(X_train, Y_train, X_test, samples_test, args, i)
