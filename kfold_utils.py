@@ -145,7 +145,8 @@ def k_fold_data_prep(args, samples=None):
     print(len(bkg), len(sig))
 
     if args.mode=="cathode":
-        samples_train = file_loading(args.samples_file, args, labels=False)
+        samples_train = np.load(args.samples_file)
+        samples_train = np.concatenate((samples_train, np.zeros((len(samples_train),1))), axis=1)
 
     if args.signal_number is not None:
         n_sig=args.signal_number
@@ -176,8 +177,8 @@ def k_fold_data_prep(args, samples=None):
 
     if args.mode=="cathode":
         print("cathode")
-        samples_train = samples[:args.N_train]
-        samples_test = samples[args.N_train:]
+        samples_test = samples_train[args.N_train:]
+        samples_train = samples_train[:args.N_train]
         print("N_train: ", len(samples_train), "; N_test: ", len(samples_test))
     else:
         samples_t = np.array_split(samples_train,5)
