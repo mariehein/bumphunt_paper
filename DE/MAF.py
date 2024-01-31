@@ -73,7 +73,7 @@ class logit_norm:
         for i in range(self.num):
             if self.do_mean:
                 array[:,i] = array[:,i]*self.std[i] + self.mean[i]
-            array[:,i] =expit(array[:,i])
+            array[:,i] = expit(array[:,i])
             array[:, i] = array[:, i] * self.max[i] + self.shift[i]
         return array
 
@@ -96,8 +96,8 @@ np.save(args.directory+"test_data.npy", test_data)
 norm = logit_norm(train_data, mean=True)#, no_logit=1)
 train_data, _ = norm.forward(train_data)
 val_data, _ = norm.forward(val_data)
-inner, _ = norm.forward(inner)
-m_inner = inner[:,0]
+inner_normed, _ = norm.forward(inner)
+m_inner = inner_normed[:,0]
 m_outer = train_data[:,0]
 
 MAF.run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm)

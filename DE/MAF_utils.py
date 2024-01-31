@@ -9,6 +9,52 @@ import math
 import numpy as np
 from scipy.stats import gaussian_kde
 
+
+def sample(model, device, m, N, norm, directory, kernel=None, plot=True, testset=None, name="samples"):
+    kernel = gaussian_kde(m)
+    m_samples = kernel.resample(size=int(N)).T
+
+    with torch.inference_mode():
+        tensor_generated = model.sample(
+            1, # number of samples in context (nflows convention....)
+            context=torch.tensor(m_samples, device=device, dtype=torch.float32)
+        )
+        arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
+    samples = norm.inverse(np.concatenate((m_samples, arr_generated),axis=1))
+    np.save(directory+name+".npy", samples)
+
+    if plot:
+        if testset is None:
+            fig, ax = plt.subplots(2,2)
+            ax = ax.flatten()
+            legend = [None, "samples", None, None]
+            for i in range(4):
+                ax[i].hist(samples[:,i+1], density=True, bins=50, label = legend[i])
+                ax[i].set_yscale('log')
+                if i == 1:
+                    ax[i].legend()
+            fig.savefig(directory+name+".pdf")
+        
+        else:    
+            fig, ax = plt.subplots(2,2)
+            ax = ax.flatten()
+            legend = [None, ("samples", "bkg"), None, None]
+            for i in range(4):
+                ax[i].hist((samples[:,i+1], testset[:,i+1]), density=True, bins=50, label = legend[i])
+                ax[i].set_yscale('log')
+                if i == 1:
+                    ax[i].legend()
+            fig.savefig(directory+name+".pdf")
+        plt.close('all')
+
+def loss_saving(train, val, directory, plot=True):
+    np.save(directory+"losses.npy", {"train_loss": train, "val_loss": val})
+    if plot:
+        plt.figure()
+        plt.plot(train[1:], label="train loss")
+        plt.plot(val[1:], label="val loss")
+        plt.savefig(directory+"losses.pdf")
+
 def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("INFO: current device: {}".format(device))
@@ -51,6 +97,9 @@ def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm
     tensor_context_train = torch.tensor(train_data[:,:1], device=device, dtype=torch.float32)
     tensor_context_valid = torch.tensor(val_data[:,:1], device=device, dtype=torch.float32)
 
+    val_loss = []
+    train_loss = []
+
     for epoch in range(num_iter):
         optimizer.zero_grad()
 
@@ -71,50 +120,26 @@ def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm
             else:
                 break
 
+        val_loss.append(loss_valid)
+        train_loss.append(loss)
         optimizer.step()
 
-    if (epoch+1) % 250 == 0:
-        time_current = time.time()
-        print("INFO: epoch {:04d} | time_elapsed: {:.3f}s".format(epoch+1, time_current - time_start))
-        print("INFO:            | loss: {:.4f} | loss_best: {:.4f}".format(loss, loss_best))
+        if (epoch+1) % 250 == 0:
+            time_current = time.time()
+            print("INFO: epoch {:04d} | time_elapsed: {:.3f}s".format(epoch+1, time_current - time_start))
+            print("INFO:            | loss: {:.4f} | loss_best: {:.4f}".format(loss, loss_best))
     print("INFO: training finished")
 
     flow1.load_state_dict(torch.load("MAF_state_dict", map_location=device))
 
-    kernel_inner = gaussian_kde(m_inner)
-    m_inner_samples = kernel_inner.resample(size=int(1e6)).T
+    loss_saving(torch.tensor(train_loss).cpu().numpy(), torch.tensor(val_loss).cpu().numpy(), args.directory)
 
-    with torch.inference_mode():
-        tensor_generated = flow1.sample(
-            1, # number of samples in context (nflows convention....)
-            context=torch.tensor(m_inner_samples, device=device, dtype=torch.float32)
-        )
-        arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
-    print(arr_generated.shape)
-    samples_inner = norm.inverse(np.concatenate(m_inner_samples, arr_generated))
-    np.save(args.directory+"samples_inner.npy", samples_inner)
+    sample(flow1, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
+    sample(flow1, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
 
-    fig, ax = plt.subplots((2,2))
-    ax = ax.flatten()
-    for i in range(4):
-        ax[i].hist((samples_inner[:,i+1], inner[:,i+1]))
-    fig.savefig(args.directory+"inner_samples.pdf")
+    torch.save(flow1, args.directory+"trained_flow.pt")
+    flow2 = torch.load(args.directory+"trained_flow.pt")
 
-    kernel_outer = gaussian_kde(m_outer)
-    m_outer_samples = kernel_outer.resample(size=int(1e6)).T
 
-    with torch.inference_mode():
-        tensor_generated = flow1.sample(
-            1, # number of samples in context (nflows convention....)
-            context=torch.tensor(m_outer_samples, device=device, dtype=torch.float32)
-        )
-        arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
-    print(arr_generated.shape)
-    samples_outer = norm.inverse(np.concatenate(m_outer_samples, arr_generated))
-    np.save(args.directory+"samples_outer.npy", samples_outer)
-
-    fig, ax = plt.subplots((2,2))
-    ax = ax.flatten()
-    for i in range(4):
-        ax[i].hist((samples_outer[:,i+1], test_data[:,i+1]))
-    fig.savefig(args.directory+"outer_samples.pdf")
+    sample(flow2, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner2")
+    sample(flow2, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer2")
