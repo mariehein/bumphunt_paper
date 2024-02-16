@@ -9,7 +9,7 @@ def add_to_file(file, arr):
 	else:
 		np.save(file, np.reshape(arr, (1,len(arr))))
 
-def classifier_training(X_train, Y_train, X_test, samples_test, args, run):
+def classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, run):
 	test_results = np.zeros((args.ensemble_over,len(X_test)))
 	samples_results = np.zeros((args.ensemble_over, len(samples_test)))
 
@@ -17,7 +17,7 @@ def classifier_training(X_train, Y_train, X_test, samples_test, args, run):
 		print("Tree number:", args.ensemble_over*run+j)
 		np.random.seed(int(datetime.now().timestamp()))
 		tree = HistGradientBoostingClassifier(verbose=0, max_iter=200, max_leaf_nodes=31, validation_fraction=0.5, random_state=int(datetime.now().timestamp()), class_weight="balanced")
-		results_f = tree.fit(X_train, Y_train)
+		results_f = tree.fit(X_train, Y_train, sample_weight=train_weights)
 		test_results[j] = tree.predict_proba(X_test)[:,1]
 		samples_results[j] = tree.predict_proba(samples_test)[:,1]
 		del tree

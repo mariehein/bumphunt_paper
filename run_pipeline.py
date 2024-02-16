@@ -21,6 +21,7 @@ parser.add_argument('--extrabkg_file', type=str, default="/hpcwork/rwth0934/LHCO
 parser.add_argument('--signal_file', type=str, default=None)
 parser.add_argument('--three_pronged', default=False, action="store_true")
 parser.add_argument('--samples_file', default=None, type=str)
+parser.add_argument('--samples_weights', default=None, type=str)
 
 #Dataset preparation
 parser.add_argument('--signal_percentage', type=float, default=None, help="Second in priority order")
@@ -60,11 +61,11 @@ if args.mode=="IAD" and args.window_number!=5:
 
 print(args)
 
-X_train, Y_train, X_test, Y_test, samples_test = dp.k_fold_data_prep(args)
+X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
 for i in range(args.start_at_run, args.N_runs):
     print()
     print("------------------------------------------------------")
     print()
     print("Classifier run no. ", i)
     print()
-    BDT.classifier_training(X_train, Y_train, X_test, samples_test, args, i)
+    BDT.classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, i)

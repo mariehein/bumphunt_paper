@@ -2,14 +2,6 @@ import numpy as np
 import pandas as pd
 import warnings
 
-def shuffle_XY(X,Y):
-    seed_int=np.random.randint(300)
-    np.random.seed(seed_int)
-    np.random.shuffle(X)
-    np.random.seed(seed_int)
-    np.random.shuffle(Y)
-    return X,Y
-
 class no_logit_norm:
 	def __init__(self,array):
 		self.mean = np.mean(array, axis=0)
@@ -167,9 +159,14 @@ def k_fold_data_prep(args, samples=None):
     innerdata = data_all[innermask]
     outerdata = data_all[~innermask]
 
+    if args.samples_weights is not None:
+        np.load(args.samples_weights)
+
     if args.mode=="cwola":
         mask = (outerdata[:,0]>args.minmass-0.2) & (outerdata[:,0]<args.maxmass+0.2)
         samples_train = outerdata[mask]
+        if args.samples_weights is not None: 
+            samples_weights = samples_weights[mask] 
     elif args.mode=="IAD":
         samples_train = extra_bkg[40000:312858]
 
@@ -179,10 +176,18 @@ def k_fold_data_prep(args, samples=None):
         print("cathode")
         samples_test = samples_train[args.N_train:]
         samples_train = samples_train[:args.N_train]
+        if args.samples_weights is not None: 
+            samples_weights = samples_weights[:args.N_train] 
+        else: 
+            samples_weights = np.ones(len(samples_train))
         print("N_train: ", len(samples_train), "; N_test: ", len(samples_test))
     else:
+        if samples_weights is None:
+            samples_weights = np.ones(len(samples_train))
         samples_t = np.array_split(samples_train,5)
+        samples_w = np.array_split(samples_weights, 5)
         samples_train = np.concatenate((samples_t[indices[0]], samples_t[indices[1]],samples_t[indices[2]], samples_t[indices[3]]))
+        samples_weights = np.concatenate((samples_w[indices[0]], samples_w[indices[1]],samples_w[indices[2]], samples_w[indices[3]]))
         samples_test = samples_t[indices[4]]
         print("N_train: ", len(samples_train), "; N_test: ", len(samples_test))
 
@@ -191,13 +196,18 @@ def k_fold_data_prep(args, samples=None):
     X_test = X_t[indices[4]]
 
     X_train = np.concatenate((X_train[:,1:args.inputs+1],samples_train[:,1:args.inputs+1]),axis=0)
-    Y_train = np.concatenate((np.ones(len(X_train)-len(samples_train)),np.zeros(len(samples_train))),axis=0)		
+    Y_train = np.concatenate((np.ones(len(X_train)-len(samples_train)),np.zeros(len(samples_train))),axis=0)	
+    weights_train = np.concatenate(np.one(len(X_train), samples_weights), axis=0)	
 
     Y_test = X_test[:,-1]
     X_test = X_test[:, 1:args.inputs+1]
     samples_test = samples_test[:,1:args.inputs+1]
 
-    X_train, Y_train = shuffle_XY(X_train, Y_train)
+    inds = np.arange(len(X_train))
+    np.shuffle(inds)
+    X_train = X_train[inds]
+    Y_train = Y_train[inds]
+    weights_train = weights_train[inds]
 
     if args.cl_norm:
         normalisation = no_logit_norm(X_train)
@@ -208,4 +218,4 @@ def k_fold_data_prep(args, samples=None):
 
     np.save(args.directory+"Y_test.npy", Y_test)
 
-    return X_train, Y_train, X_test, Y_test, samples_test
+    return X_train, Y_train, X_test, Y_test, samples_test, weights_train
