@@ -160,7 +160,8 @@ def k_fold_data_prep(args, samples=None):
     outerdata = data_all[~innermask]
 
     if args.samples_weights is not None:
-        np.load(args.samples_weights)
+        samples_weights = np.load(args.samples_weights)
+
 
     if args.mode=="cwola":
         mask = (outerdata[:,0]>args.minmass-0.2) & (outerdata[:,0]<args.maxmass+0.2)
@@ -195,16 +196,16 @@ def k_fold_data_prep(args, samples=None):
     X_train = np.concatenate((X_t[indices[0]], X_t[indices[1]], X_t[indices[2]], X_t[indices[3]]))
     X_test = X_t[indices[4]]
 
+    weights_train = np.concatenate((np.ones(len(X_train)), samples_weights), axis=0)
     X_train = np.concatenate((X_train[:,1:args.inputs+1],samples_train[:,1:args.inputs+1]),axis=0)
     Y_train = np.concatenate((np.ones(len(X_train)-len(samples_train)),np.zeros(len(samples_train))),axis=0)	
-    weights_train = np.concatenate(np.one(len(X_train), samples_weights), axis=0)	
 
     Y_test = X_test[:,-1]
     X_test = X_test[:, 1:args.inputs+1]
     samples_test = samples_test[:,1:args.inputs+1]
 
     inds = np.arange(len(X_train))
-    np.shuffle(inds)
+    np.random.shuffle(inds)
     X_train = X_train[inds]
     Y_train = Y_train[inds]
     weights_train = weights_train[inds]
