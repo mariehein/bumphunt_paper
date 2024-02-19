@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 #For SIC curve reproduction only these 5 option need to be changed
-parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode"], required=True)
+parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode", "IAD_scan"], required=True)
 parser.add_argument('--fold_number', type=int, required=True)
 parser.add_argument('--window_number', type=int, required=True)
 parser.add_argument('--directory', type=str, required=True)
@@ -57,7 +57,7 @@ args.minmass = (args.window_number-5)*0.1+3.3
 args.maxmass = (args.window_number-5)*0.1+3.7
 
 if args.mode=="IAD" and args.window_number!=5:
-    raise ValueError("IAD currently only supported with window 5")
+    raise ValueError("IAD currently only supported with window 5, choose IAD_scan to use less data but all windows")
 
 print(args)
 

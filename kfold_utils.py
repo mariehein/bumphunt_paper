@@ -162,7 +162,6 @@ def k_fold_data_prep(args, samples=None):
     if args.samples_weights is not None:
         samples_weights = np.load(args.samples_weights)
 
-
     if args.mode=="cwola":
         mask = (outerdata[:,0]>args.minmass-0.2) & (outerdata[:,0]<args.maxmass+0.2)
         samples_train = outerdata[mask]
@@ -170,6 +169,9 @@ def k_fold_data_prep(args, samples=None):
             samples_weights = samples_weights[mask] 
     elif args.mode=="IAD":
         samples_train = extra_bkg[40000:312858]
+    elif args.mode=="IAD_scan":
+        innerdata, samples_train = np.array_split(innerdata, 2)
+        samples_train = innerdata[innerdata[:,-1]==0] 
 
     indices = np.roll(np.array(range(5)),args.fold_number)
 
@@ -183,7 +185,7 @@ def k_fold_data_prep(args, samples=None):
             samples_weights = np.ones(len(samples_train))
         print("N_train: ", len(samples_train), "; N_test: ", len(samples_test))
     else:
-        if samples_weights is None:
+        if args.samples_weights is None:
             samples_weights = np.ones(len(samples_train))
         samples_t = np.array_split(samples_train,5)
         samples_w = np.array_split(samples_weights, 5)
