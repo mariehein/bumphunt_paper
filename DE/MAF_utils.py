@@ -9,18 +9,89 @@ import math
 import numpy as np
 from scipy.stats import gaussian_kde
 
+class MAF:
+    def __init__(self, features, conditionals, transforms, hidden, blocks):
+        self.features = features
+        self.conditionals = conditionals
+        self.transforms = transforms
+        self.hidden = hidden
+        self.blocks = blocks
 
-def sample(model, device, m, N, norm, directory, kernel=None, plot=True, testset=None, name="samples"):
-    kernel = gaussian_kde(m)
-    m_samples = kernel.resample(size=int(N)).T
+    def make_MAF(self, device):
+        base_dist = nflows.distributions.normal.StandardNormal(shape=[self.features])
 
-    with torch.inference_mode():
-        tensor_generated = model.sample(
-            1, # number of samples in context (nflows convention....)
-            context=torch.tensor(m_samples, device=device, dtype=torch.float32)
-        )
+        inds = np.arange(self.features)
+        list_transforms = []
+        for i in range(self.transforms):
+            np.random.shuffle(inds)
+            list_transforms.append(
+                nflows.transforms.permutations.Permutation(torch.tensor(inds))
+            )
+            list_transforms.append(
+                nflows.transforms.autoregressive.MaskedAffineAutoregressiveTransform(
+                    features=self.features,
+                    hidden_features=self.num_hidden,
+                    context_features=self.conditionals, # dimension of conditions.
+                    num_blocks=self.num_blocks,
+                    activation=torch.nn.functional.gelu
+                )
+            )
+
+        self.transform = nflows.transforms.base.CompositeTransform(list_transforms).to(device)
+        self.flow = nflows.flows.base.Flow(self.transform, base_dist).to(device)
+
+    def train(self, train_data, val_data, **kwargs):
+        print('Starting training...')
+        batch_size = kwargs.get('batch_size', 64)
+        lr = kwargs.get('lr', 1e-2)
+        n_epochs = kwargs.get('n_epochs', 25)
+        save = kwargs.get('save', False)
+        path = kwargs.get('path', 'Data/flows/temp_flow.pth')
+
+        n_batches = data.shape[0] // batch_size
+
+        opt = torch.optim.Adam(self.flow.parameters(), lr = lr)
+
+        def train_step(flow, x):
+            opt.zero_grad()
+            loss = - flow.log_prob(x).mean()
+            loss.backward()
+            opt.step()
+            return loss
+
+        for epoch in range(n_epochs):
+            np.random.shuffle(data)
+            batch_losses = []
+            for i in range(n_batches):
+                batch = data[i * batch_size:(i+1) * batch_size]
+                loss = train_step(self.flow, batch)
+                batch_losses.append(loss.detach().numpy())
+            loss = np.mean(batch_losses)
+            if epoch % 10 == 0:
+                print('Epoch: {}, Loss: {}'.format(epoch, loss))
+        print('Training finished.')
+
+        if save:
+            torch.save(self.flow.state_dict(), path)
+        return self.flow
+
+    
+    def sample(self, device, m, N):
+        kernel = gaussian_kde(m)
+        m_samples = kernel.resample(size=int(N)).T
+
+        with torch.inference_mode():
+            tensor_generated = self.flow.sample(
+                1 , 
+                context=torch.tensor(m_samples, device=device, dtype=torch.float32)
+            )
         arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
-    samples = norm.inverse(np.concatenate((m_samples, arr_generated),axis=1))
+        samples = np.concatenate((m_samples, arr_generated), axis=1)
+        return samples
+
+def sample(model, device, m, N, norm, directory, plot=True, testset=None, name="samples"):
+    samples = model.sample(device, m, N)
+    samples = norm.inverse(samples)
     np.save(directory+name+".npy", samples)
 
     if plot:
@@ -59,30 +130,10 @@ def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("INFO: current device: {}".format(device))
 
-    num_transforms = 10
-    base_dist = nflows.distributions.normal.StandardNormal(shape=[4])
-
-    permutations = [[2,1,3,0], [1,3,0,2], [0,2,1,3], [3,0,2,1], [2,1,3,0], [1,3,0,2], [0,2,1,3], [3,0,2,1], [2,1,3,0], [1,3,0,2]]
-    list_transforms = []
-    for i in range(num_transforms):
-        list_transforms.append(
-            nflows.transforms.permutations.Permutation(torch.tensor(permutations[i]))
-        )
-        list_transforms.append(
-            nflows.transforms.autoregressive.MaskedAffineAutoregressiveTransform(
-                features=4,
-                hidden_features=32,
-                context_features=1, # dimension of conditions.
-                num_blocks=3,
-                activation=torch.nn.functional.gelu
-            )
-        )
-
-    transform = nflows.transforms.base.CompositeTransform(list_transforms).to(device)
-
-    flow1 = nflows.flows.base.Flow(transform, base_dist).to(device)
-
-    optimizer = torch.optim.Adam(flow1.parameters(),lr=0.01)
+    model = MAF(num_transforms=10, num_blocks=3, num_hidden=32, features=args.inputs, conditionals=args.conditional_inputs)
+    model.make_MAF(device)
+    
+    optimizer = torch.optim.Adam(model.flow.parameters(),lr=0.01)
 
     num_iter = 10000
     time_start = time.time()
@@ -92,10 +143,10 @@ def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm
     patience=0
     patience_max=500
 
-    tensor_input_train = torch.tensor(train_data[:,1:], device=device, dtype=torch.float32)
-    tensor_input_valid = torch.tensor(val_data[:,1:], device=device, dtype=torch.float32)
-    tensor_context_train = torch.tensor(train_data[:,:1], device=device, dtype=torch.float32)
-    tensor_context_valid = torch.tensor(val_data[:,:1], device=device, dtype=torch.float32)
+    tensor_input_train = torch.tensor(train_data[:,args.conditional_inputs:], device=device, dtype=torch.float32)
+    tensor_input_valid = torch.tensor(val_data[:,args.conditional_inputs:], device=device, dtype=torch.float32)
+    tensor_context_train = torch.tensor(train_data[:,:args.conditional_inputs], device=device, dtype=torch.float32)
+    tensor_context_valid = torch.tensor(val_data[:,:args.conditional_inputs], device=device, dtype=torch.float32)
 
     val_loss = []
     train_loss = []
@@ -103,16 +154,16 @@ def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm
     for epoch in range(num_iter):
         optimizer.zero_grad()
 
-        loss = -flow1.log_prob(inputs=tensor_input_train, context=tensor_context_train).mean()
+        loss = -MAF.flow.log_prob(inputs=tensor_input_train, context=tensor_context_train).mean()
         loss.backward()
 
         with torch.no_grad():
-            loss_valid = -flow1.log_prob(inputs=tensor_input_valid, context=tensor_context_valid).mean().detach().cpu().numpy()
+            loss_valid = -MAF.flow.log_prob(inputs=tensor_input_valid, context=tensor_context_valid).mean().detach().cpu().numpy()
 
         if loss_best > loss_valid:
             print("epoch {:04d}: loss improved {:.4f} -> {:.4f}".format(epoch, loss_best, loss_valid))
             loss_best = loss_valid
-            torch.save(flow1.state_dict(), "MAF_state_dict")
+            torch.save(MAF.flow.state_dict(), "MAF_state_dict")
             patience=0
         else:
             if patience < patience_max:
@@ -130,16 +181,15 @@ def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm
             print("INFO:            | loss: {:.4f} | loss_best: {:.4f}".format(loss, loss_best))
     print("INFO: training finished")
 
-    flow1.load_state_dict(torch.load("MAF_state_dict", map_location=device))
+    MAF.flow.load_state_dict(torch.load("MAF_state_dict", map_location=device))
 
     loss_saving(torch.tensor(train_loss).cpu().numpy(), torch.tensor(val_loss).cpu().numpy(), args.directory)
 
-    sample(flow1, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
-    sample(flow1, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
+    sample(MAF.flow, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
+    sample(MAF.flow, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
 
-    torch.save(flow1, args.directory+"trained_flow.pt")
+    torch.save(MAF.flow, args.directory+"trained_flow.pt")
     flow2 = torch.load(args.directory+"trained_flow.pt")
-
 
     sample(flow2, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner2")
     sample(flow2, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer2")

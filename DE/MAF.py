@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--input_set', type=str, choices=["baseline","extended1","extended2","extended3"])
 parser.add_argument('--directory', type=str, required=True)
 parser.add_argument('--inputs', type=int, default=4)
+parser.add_argument('--conditional_inputs', type=int, default=1)
 parser.add_argument('--N_samples', type=int, default=1e6)
 parser.add_argument('--DE_filename', type=str, default="MAF.yml")
 

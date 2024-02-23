@@ -171,7 +171,7 @@ def k_fold_data_prep(args, samples=None):
         samples_train = extra_bkg[40000:312858]
     elif args.mode=="IAD_scan":
         innerdata, samples_train = np.array_split(innerdata, 2)
-        samples_train = innerdata[innerdata[:,-1]==0] 
+        samples_train = samples_train[samples_train[:,-1]==0] 
 
     indices = np.roll(np.array(range(5)),args.fold_number)
 
