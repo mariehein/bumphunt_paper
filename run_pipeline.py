@@ -32,6 +32,8 @@ parser.add_argument('--maxmass', type=float, default=3.7)#modified based on wind
 parser.add_argument('--cl_norm', default=True, action="store_false")
 parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--inputs', type=int, default=4)
+parser.add_argument('--randomize_seed', default=False, action="store_true")
+
 
 #General classifier Arguments
 parser.add_argument('--N_runs', type=int, default=10)
@@ -61,11 +63,15 @@ if args.mode=="IAD" and args.window_number!=5:
 
 print(args)
 
-X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
+if not args.randomize_seed:
+    X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
 for i in range(args.start_at_run, args.N_runs):
     print()
     print("------------------------------------------------------")
     print()
     print("Classifier run no. ", i)
     print()
+    if args.randomize_seed:
+        args.set_seed = i
+        X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
     BDT.classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, i)

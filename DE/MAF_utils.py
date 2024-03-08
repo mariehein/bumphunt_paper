@@ -30,9 +30,9 @@ class MAF:
             list_transforms.append(
                 nflows.transforms.autoregressive.MaskedAffineAutoregressiveTransform(
                     features=self.features,
-                    hidden_features=self.num_hidden,
+                    hidden_features=self.hidden,
                     context_features=self.conditionals, # dimension of conditions.
-                    num_blocks=self.num_blocks,
+                    num_blocks=self.blocks,
                     activation=torch.nn.functional.gelu
                 )
             )
@@ -40,40 +40,54 @@ class MAF:
         self.transform = nflows.transforms.base.CompositeTransform(list_transforms).to(device)
         self.flow = nflows.flows.base.Flow(self.transform, base_dist).to(device)
 
-    def train(self, train_data, val_data, **kwargs):
+    def train(self, train_data, val_data, opt, scheduler, args):
         print('Starting training...')
-        batch_size = kwargs.get('batch_size', 64)
-        lr = kwargs.get('lr', 1e-2)
-        n_epochs = kwargs.get('n_epochs', 25)
-        save = kwargs.get('save', False)
-        path = kwargs.get('path', 'Data/flows/temp_flow.pth')
 
-        n_batches = data.shape[0] // batch_size
+        n_batches = train_data.shape[0] // args.batch_size
 
-        opt = torch.optim.Adam(self.flow.parameters(), lr = lr)
-
-        def train_step(flow, x):
+        def train_step(flow, x, context):
             opt.zero_grad()
-            loss = - flow.log_prob(x).mean()
+            loss = - flow.log_prob(x, context=context).mean()
             loss.backward()
             opt.step()
             return loss
+        
+        loss_best = np.inf
+        patience = 0
 
-        for epoch in range(n_epochs):
-            np.random.shuffle(data)
+        train_loss_arr = []
+        val_loss_arr = []
+
+        for epoch in range(args.epochs):
+            print(torch.cuda.memory_allocated(), torch.cuda.max_memory_allocated())
+            np.random.shuffle(train_data)
             batch_losses = []
             for i in range(n_batches):
-                batch = data[i * batch_size:(i+1) * batch_size]
-                loss = train_step(self.flow, batch)
-                batch_losses.append(loss.detach().numpy())
+                batch = train_data[i * args.batch_size:(i+1) * args.batch_size]
+                loss = train_step(self.flow, batch[:,self.conditionals:], context = batch[:,:self.conditionals])
+                batch_losses.append(loss.detach().cpu().numpy())
             loss = np.mean(batch_losses)
-            if epoch % 10 == 0:
-                print('Epoch: {}, Loss: {}'.format(epoch, loss))
+            val_loss = -self.flow.log_prob(val_data[:,self.conditionals:], context = val_data[:,:self.conditionals]).mean()
+            scheduler.step(val_loss)
+
+            train_loss_arr.append(loss)
+            val_loss_arr.append(val_loss.detach().cpu().numpy())
+
+            if val_loss < loss_best:
+                loss_best = val_loss
+                torch.save(self.flow.state_dict(), args.directory+"MAF_state_dict")
+                patience=0
+            else:
+                if patience < args.patience_max:
+                    patience+=1
+                else:
+                    break
+
+            print('Epoch: {}, Loss: {}, Val Loss: {}'.format(epoch, loss, val_loss))
         print('Training finished.')
 
-        if save:
-            torch.save(self.flow.state_dict(), path)
-        return self.flow
+        history = {"val_loss": torch.tensor(val_loss_arr).cpu().numpy(), "train_loss": torch.tensor(train_loss_arr).cpu().numpy()}
+        return history
 
     
     def sample(self, device, m, N):
@@ -118,78 +132,32 @@ def sample(model, device, m, N, norm, directory, plot=True, testset=None, name="
             fig.savefig(directory+name+".pdf")
         plt.close('all')
 
-def loss_saving(train, val, directory, plot=True):
-    np.save(directory+"losses.npy", {"train_loss": train, "val_loss": val})
+def loss_saving(history, directory, plot=True):
+    np.save(directory+"losses.npy", history)
     if plot:
         plt.figure()
-        plt.plot(train[1:], label="train loss")
-        plt.plot(val[1:], label="val loss")
+        plt.plot(history["train_loss"][1:], label="train loss")
+        plt.plot(history["val_loss"][1:], label="val loss")
         plt.savefig(directory+"losses.pdf")
 
 def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("INFO: current device: {}".format(device))
 
-    model = MAF(num_transforms=10, num_blocks=3, num_hidden=32, features=args.inputs, conditionals=args.conditional_inputs)
+    model = MAF(transforms=10, blocks=3, hidden=32, features=args.inputs, conditionals=args.conditional_inputs)
     model.make_MAF(device)
     
-    optimizer = torch.optim.Adam(model.flow.parameters(),lr=0.01)
+    optimizer = torch.optim.Adam(model.flow.parameters(),lr = args.learning_rate)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 5)
 
-    num_iter = 10000
-    time_start = time.time()
+    tensor_input_train = torch.tensor(train_data, device=device, dtype=torch.float32)
+    tensor_input_valid = torch.tensor(val_data, device=device, dtype=torch.float32)
 
-    loss_best = np.inf
+    history = model.train(tensor_input_train, tensor_input_valid, optimizer, scheduler, args)
 
-    patience=0
-    patience_max=500
+    loss_saving(history, args.directory)
 
-    tensor_input_train = torch.tensor(train_data[:,args.conditional_inputs:], device=device, dtype=torch.float32)
-    tensor_input_valid = torch.tensor(val_data[:,args.conditional_inputs:], device=device, dtype=torch.float32)
-    tensor_context_train = torch.tensor(train_data[:,:args.conditional_inputs], device=device, dtype=torch.float32)
-    tensor_context_valid = torch.tensor(val_data[:,:args.conditional_inputs], device=device, dtype=torch.float32)
+    sample(model.flow, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
+    sample(model.flow, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
 
-    val_loss = []
-    train_loss = []
-
-    for epoch in range(num_iter):
-        optimizer.zero_grad()
-
-        loss = -MAF.flow.log_prob(inputs=tensor_input_train, context=tensor_context_train).mean()
-        loss.backward()
-
-        with torch.no_grad():
-            loss_valid = -MAF.flow.log_prob(inputs=tensor_input_valid, context=tensor_context_valid).mean().detach().cpu().numpy()
-
-        if loss_best > loss_valid:
-            print("epoch {:04d}: loss improved {:.4f} -> {:.4f}".format(epoch, loss_best, loss_valid))
-            loss_best = loss_valid
-            torch.save(MAF.flow.state_dict(), "MAF_state_dict")
-            patience=0
-        else:
-            if patience < patience_max:
-                patience += 1
-            else:
-                break
-
-        val_loss.append(loss_valid)
-        train_loss.append(loss)
-        optimizer.step()
-
-        if (epoch+1) % 250 == 0:
-            time_current = time.time()
-            print("INFO: epoch {:04d} | time_elapsed: {:.3f}s".format(epoch+1, time_current - time_start))
-            print("INFO:            | loss: {:.4f} | loss_best: {:.4f}".format(loss, loss_best))
-    print("INFO: training finished")
-
-    MAF.flow.load_state_dict(torch.load("MAF_state_dict", map_location=device))
-
-    loss_saving(torch.tensor(train_loss).cpu().numpy(), torch.tensor(val_loss).cpu().numpy(), args.directory)
-
-    sample(MAF.flow, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
-    sample(MAF.flow, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
-
-    torch.save(MAF.flow, args.directory+"trained_flow.pt")
-    flow2 = torch.load(args.directory+"trained_flow.pt")
-
-    sample(flow2, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner2")
-    sample(flow2, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer2")
+    torch.save(model.flow, args.directory+"trained_flow.pt")
