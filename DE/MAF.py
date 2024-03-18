@@ -14,8 +14,9 @@ parser.add_argument('--input_set', type=str, choices=["baseline","extended1","ex
 parser.add_argument('--directory', type=str, required=True)
 parser.add_argument('--inputs', type=int, default=4)
 parser.add_argument('--conditional_inputs', type=int, default=1)
-parser.add_argument('--N_samples', type=int, default=1e6)
+parser.add_argument('--N_samples', type=int, default=1000000)
 parser.add_argument('--DE_filename', type=str, default="MAF.yml")
+parser.add_argument('--data_direc', type=str, default = "data/baseline_without/")
 
 #parser.add_argument('--DE_N_best_epochs', type=int, default=10)
 #parser.add_argument('--no_averaging', default=True, action="store_false")
@@ -25,13 +26,20 @@ parser.add_argument('--DE_filename', type=str, default="MAF.yml")
 parser.add_argument("--batch_size", default = 128, type=int)
 parser.add_argument("--epochs", default = 100, type=int)
 parser.add_argument("--patience_max", default = 10, type=int)
-parser.add_argument("--learning_rate", default = 1e-2, type=float)
+parser.add_argument("--hidden", default = 128, type=int)
+parser.add_argument("--transforms", default = 20, type=int)
+parser.add_argument("--blocks", default = 1, type=int)
+parser.add_argument("--learning_rate", default = 1e-3, type=float)
+parser.add_argument('--save_models', default=False, action="store_true")
 
 args = parser.parse_args()
 print(args)
 
 if not os.path.exists(args.directory):
 	os.makedirs(args.directory)
+
+
+np.save(args.directory+"args.npy", args)
 
 if args.input_set=="extended1":
     args.inputs=10
@@ -83,11 +91,9 @@ class logit_norm:
             array[:, i] = array[:, i] * self.max[i] + self.shift[i]
         return array
 
-data_direc = "data/"+args.input_set+"_without/"
-
-data = np.load(data_direc+"outerdata.npy")[:,:args.inputs+1]
+data = np.load(args.data_direc+"outerdata.npy")[:,:args.inputs+1]
 print(data.shape)
-inner = np.load(data_direc+"innerdata.npy")[:,:args.inputs+1]
+inner = np.load(args.data_direc+"innerdata.npy")[:,:args.inputs+1]
 print(inner.shape)
 train_val_test=np.array([0.6, 0.8])
 N = len(data)

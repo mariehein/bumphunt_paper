@@ -8,6 +8,7 @@ import time
 import math
 import numpy as np
 from scipy.stats import gaussian_kde
+import psutil
 
 class MAF:
     def __init__(self, features, conditionals, transforms, hidden, blocks):
@@ -33,14 +34,15 @@ class MAF:
                     hidden_features=self.hidden,
                     context_features=self.conditionals, # dimension of conditions.
                     num_blocks=self.blocks,
-                    activation=torch.nn.functional.gelu
+                    activation=torch.nn.functional.relu
                 )
             )
+            list_transforms.append(transforms.normalization.BatchNorm(self.features, momentum=1.))
 
         self.transform = nflows.transforms.base.CompositeTransform(list_transforms).to(device)
         self.flow = nflows.flows.base.Flow(self.transform, base_dist).to(device)
 
-    def train(self, train_data, val_data, opt, scheduler, args):
+    def train(self, train_data, val_data, opt, scheduler, args, device):
         print('Starting training...')
 
         n_batches = train_data.shape[0] // args.batch_size
@@ -51,27 +53,32 @@ class MAF:
             loss.backward()
             opt.step()
             return loss
-        
+
+        def loss_calculation_batches(flow, val):
+            batch_loss = []
+            for batch in val:
+                a = -flow.log_prob(batch[:,1:], context = batch[:,:1]).mean().detach().cpu().numpy()
+                batch_loss.append(a)
+            return np.mean(batch_loss)
+                
         loss_best = np.inf
         patience = 0
 
         train_loss_arr = []
         val_loss_arr = []
-
         for epoch in range(args.epochs):
-            print(torch.cuda.memory_allocated(), torch.cuda.max_memory_allocated())
-            np.random.shuffle(train_data)
+
             batch_losses = []
-            for i in range(n_batches):
-                batch = train_data[i * args.batch_size:(i+1) * args.batch_size]
+            for batch in train_data:
                 loss = train_step(self.flow, batch[:,self.conditionals:], context = batch[:,:self.conditionals])
                 batch_losses.append(loss.detach().cpu().numpy())
             loss = np.mean(batch_losses)
-            val_loss = -self.flow.log_prob(val_data[:,self.conditionals:], context = val_data[:,:self.conditionals]).mean()
-            scheduler.step(val_loss)
+
+            val_loss = loss_calculation_batches(self.flow, val_data)
+            #scheduler.step(val_loss)
 
             train_loss_arr.append(loss)
-            val_loss_arr.append(val_loss.detach().cpu().numpy())
+            val_loss_arr.append(val_loss)
 
             if val_loss < loss_best:
                 loss_best = val_loss
@@ -83,16 +90,25 @@ class MAF:
                 else:
                     break
 
-            print('Epoch: {}, Loss: {}, Val Loss: {}'.format(epoch, loss, val_loss))
+            if args.save_models:
+                torch.save(self.flow.state_dict(), args.directory+"epoch"+str(epoch)+"_dict")
+
+            print('Epoch: {}, Loss: {}, Val Loss: {}'.format(epoch, loss, val_loss), flush=True)
+
+            del loss, val_loss, batch, batch_losses
+
         print('Training finished.')
 
-        history = {"val_loss": torch.tensor(val_loss_arr).cpu().numpy(), "train_loss": torch.tensor(train_loss_arr).cpu().numpy()}
+        self.flow.load_state_dict(torch.load(args.directory+"MAF_state_dict", map_location=device))
+
+        history = {"val_loss": np.array(val_loss_arr), "train_loss": np.array(train_loss_arr)}
         return history
 
     
     def sample(self, device, m, N):
         kernel = gaussian_kde(m)
         m_samples = kernel.resample(size=int(N)).T
+        print(m_samples.shape)
 
         with torch.inference_mode():
             tensor_generated = self.flow.sample(
@@ -101,10 +117,12 @@ class MAF:
             )
         arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
         samples = np.concatenate((m_samples, arr_generated), axis=1)
+        print(samples.shape)
         return samples
 
 def sample(model, device, m, N, norm, directory, plot=True, testset=None, name="samples"):
     samples = model.sample(device, m, N)
+    print(samples)
     samples = norm.inverse(samples)
     np.save(directory+name+".npy", samples)
 
@@ -141,23 +159,36 @@ def loss_saving(history, directory, plot=True):
         plt.savefig(directory+"losses.pdf")
 
 def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm):
+
+    print(psutil.Process().memory_info().rss / (1024 * 1024))
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("INFO: current device: {}".format(device))
 
-    model = MAF(transforms=10, blocks=3, hidden=32, features=args.inputs, conditionals=args.conditional_inputs)
+    model = MAF(transforms=args.transforms, blocks=args.blocks, hidden=args.hidden, features=args.inputs, conditionals=args.conditional_inputs)
     model.make_MAF(device)
-    
-    optimizer = torch.optim.Adam(model.flow.parameters(),lr = args.learning_rate)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 5)
 
+    print(psutil.Process().memory_info().rss / (1024 * 1024))
+    
+    optimizer = torch.optim.Adam(model.flow.parameters(),lr = args.learning_rate, weight_decay = 0.000001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 2)
+
+    print(psutil.Process().memory_info().rss / (1024 * 1024))
     tensor_input_train = torch.tensor(train_data, device=device, dtype=torch.float32)
     tensor_input_valid = torch.tensor(val_data, device=device, dtype=torch.float32)
 
-    history = model.train(tensor_input_train, tensor_input_valid, optimizer, scheduler, args)
+    train_loader = torch.utils.data.DataLoader(tensor_input_train, batch_size=args.batch_size, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(tensor_input_valid, batch_size=args.batch_size, shuffle=True)
+
+    print(psutil.Process().memory_info().rss / (1024 * 1024))
+    history = model.train(train_loader, val_loader, optimizer, scheduler, args, device)
 
     loss_saving(history, args.directory)
 
-    sample(model.flow, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
-    sample(model.flow, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
+    model.flow.eval()
 
+    print(psutil.Process().memory_info().rss / (1024 * 1024))
+    sample(model, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
+    sample(model, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
+
+    print(psutil.Process().memory_info().rss / (1024 * 1024))
     torch.save(model.flow, args.directory+"trained_flow.pt")
