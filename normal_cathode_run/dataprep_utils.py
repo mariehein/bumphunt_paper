@@ -321,7 +321,7 @@ def classifier_data_prep(args, samples=None):
         print(split_ind)
         print(len(X_train), flush=True)
         X_test, Y_test = X_train[split_ind:], Y_train[split_ind:]
-        X_train, Y_train = X_train[:split_ind], Y_train[:split_ind]
+        X_train, Y_train, train_weights = X_train[:split_ind], Y_train[:split_ind], train_weights[:split_ind]
     else:
         X_test = np.concatenate((extrabkg2,inner_extra_sig[:20000],extrabkg1[:40000]))
         Y_test = X_test[:,-1]
