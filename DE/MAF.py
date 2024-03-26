@@ -31,6 +31,7 @@ parser.add_argument("--transforms", default = 20, type=int)
 parser.add_argument("--blocks", default = 1, type=int)
 parser.add_argument("--learning_rate", default = 1e-3, type=float)
 parser.add_argument('--save_models', default=False, action="store_true")
+parser.add_argument('--include_DeltaR', default=False, action="store_true")
 
 args = parser.parse_args()
 print(args)
@@ -48,6 +49,8 @@ elif args.input_set=="extended2":
 elif args.input_set=="extended3":
     args.inputs=56
 
+if args.include_DeltaR:
+    args.inputs+=1
 
 class logit_norm:
     def __init__(self, array0, mean=True):

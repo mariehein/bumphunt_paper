@@ -12,10 +12,11 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 #For SIC curve reproduction only these 5 option need to be changed
-parser.add_argument('--bkg_file', type =str, required=True)
-parser.add_argument('--samples_train_file', type=str, required=True)
-parser.add_argument('--samples_reweight_file', type=str, required=True)
-parser.add_argument('--directory', type=str, required=True)
+parser.add_argument('--bkg_file', type =str, default="test_data.npy")
+parser.add_argument('--samples_train_file', type=str, default="samples_outer.npy")
+parser.add_argument('--samples_reweight_file', type=str, default="samples_inner.npy")
+parser.add_argument('--DE_direc', default=None, type=str)
+parser.add_argument('--directory', type=str, default = None)
 
 parser.add_argument('--inputs', default=4, type=int)
 parser.add_argument('--cl_logit', default=False, action="store_true")
@@ -27,6 +28,14 @@ parser.add_argument('--ensemble_over', default=50, type=int)
 parser.add_argument('--start_at_run', type=int, default=0)
 
 args = parser.parse_args()
+
+if args.DE_direc is not None:
+	args.bkg_file = args.DE_direc + args.bkg_file
+	args.samples_train_file = args.DE_direc + args.samples_train_file
+	args.samples_reweight_file = args.DE_direc + args.samples_reweight_file
+	if args.directory is None: 
+		args.directory = args.DE_direc + "reweight/"
+
 
 def classifier_training(X_train, Y_train, X_test, Y_test, samples_reweight, args):
 

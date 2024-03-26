@@ -33,6 +33,7 @@ parser.add_argument('--cl_norm', default=True, action="store_false")
 parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--inputs', type=int, default=4)
 parser.add_argument('--randomize_seed', default=False, action="store_true")
+parser.add_argument('--include_DeltaR', default=False, action="store_true")
 
 
 #General classifier Arguments
@@ -51,6 +52,9 @@ elif args.input_set=="extended2":
     args.inputs=12
 elif args.input_set=="extended3":
     args.inputs=56
+
+if args.include_DeltaR:
+    args.inputs+=1
 
 if args.three_pronged:
 	args.signal_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_Z_XY_qqq.extratau_2.features.h5"

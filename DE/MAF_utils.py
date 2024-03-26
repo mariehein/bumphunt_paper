@@ -37,15 +37,13 @@ class MAF:
                     activation=torch.nn.functional.relu
                 )
             )
-            list_transforms.append(transforms.normalization.BatchNorm(self.features, momentum=1.))
+            list_transforms.append(transforms.normalization.BatchNorm(self.features))
 
         self.transform = nflows.transforms.base.CompositeTransform(list_transforms).to(device)
         self.flow = nflows.flows.base.Flow(self.transform, base_dist).to(device)
 
     def train(self, train_data, val_data, opt, scheduler, args, device):
         print('Starting training...')
-
-        n_batches = train_data.shape[0] // args.batch_size
 
         def train_step(flow, x, context):
             opt.zero_grad()
@@ -75,7 +73,7 @@ class MAF:
             loss = np.mean(batch_losses)
 
             val_loss = loss_calculation_batches(self.flow, val_data)
-            #scheduler.step(val_loss)
+            scheduler.step(val_loss)
 
             train_loss_arr.append(loss)
             val_loss_arr.append(val_loss)
@@ -159,36 +157,28 @@ def loss_saving(history, directory, plot=True):
         plt.savefig(directory+"losses.pdf")
 
 def run_MAF(args, train_data, val_data, m_inner, m_outer, test_data, inner, norm):
-
-    print(psutil.Process().memory_info().rss / (1024 * 1024))
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("INFO: current device: {}".format(device))
 
     model = MAF(transforms=args.transforms, blocks=args.blocks, hidden=args.hidden, features=args.inputs, conditionals=args.conditional_inputs)
     model.make_MAF(device)
-
-    print(psutil.Process().memory_info().rss / (1024 * 1024))
     
     optimizer = torch.optim.Adam(model.flow.parameters(),lr = args.learning_rate, weight_decay = 0.000001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 2)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 5)
 
-    print(psutil.Process().memory_info().rss / (1024 * 1024))
     tensor_input_train = torch.tensor(train_data, device=device, dtype=torch.float32)
     tensor_input_valid = torch.tensor(val_data, device=device, dtype=torch.float32)
 
     train_loader = torch.utils.data.DataLoader(tensor_input_train, batch_size=args.batch_size, shuffle=True)
     val_loader = torch.utils.data.DataLoader(tensor_input_valid, batch_size=args.batch_size, shuffle=True)
 
-    print(psutil.Process().memory_info().rss / (1024 * 1024))
     history = model.train(train_loader, val_loader, optimizer, scheduler, args, device)
 
     loss_saving(history, args.directory)
 
     model.flow.eval()
 
-    print(psutil.Process().memory_info().rss / (1024 * 1024))
     sample(model, device, m_inner, args.N_samples, norm, args.directory, testset=inner, name="samples_inner")
     sample(model, device, m_outer, args.N_samples, norm, args.directory, testset=test_data, name="samples_outer")
 
-    print(psutil.Process().memory_info().rss / (1024 * 1024))
     torch.save(model.flow, args.directory+"trained_flow.pt")

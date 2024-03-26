@@ -123,6 +123,23 @@ def file_loading(filename, args, labels=True, signal=0):
     del pandas_file
     return features
 
+def DR(filename, labels=True):
+	if labels:
+		features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
+	else: 
+		features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
+		features = np.concatenate((features,np.zeros((len(features),1))),axis=1)
+
+	phi1 = np.arctan2(features[:,1], features[:,0])
+	phi2 = np.arctan2(features[:,8], features[:,7])
+	Dphi = np.abs(phi2-phi1)
+	Dphi = Dphi - np.where(Dphi>np.pi*2, 2*np.pi,0)
+	eta1 = np.arcsinh(features[:,2]/np.sqrt(features[:,1]**2+ features[:,0]**2))
+	eta2 = np.arcsinh(features[:,9]/np.sqrt(features[:,7]**2+ features[:,8]**2))
+	DR = np.sqrt((Dphi)**2 + (eta1-eta2)**2)
+
+	return DR
+
 def k_fold_data_prep(args, samples=None):
     data = file_loading(args.data_file, args)
     extra_bkg = file_loading(args.extrabkg_file, args, labels=False)
@@ -133,6 +150,17 @@ def k_fold_data_prep(args, samples=None):
         sig = data_signal
     else:
         sig = data[data[:,-1]==1]
+        
+    if args.include_DeltaR:
+        data_DR = DR(args.data_file)
+        data = np.concatenate((data[:,:args.inputs],np.array([data_DR]).T, data[:,args.inputs:]),axis=1)
+        extra_bkg_DR = DR(args.extrabkg_file)
+        extra_bkg = np.concatenate((extra_bkg[:,:args.inputs],np.array([extra_bkg_DR]).T, extra_bkg[:,args.inputs:]),axis=1)
+        if args.signal_file is not None:
+            sig_DR = DR(args.signal_file, labels=False)
+            sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
+        else:
+            sig = data[data[:,-1]==1]
     bkg = data[data[:,-1]==0]
     print(len(bkg), len(sig))
 
@@ -158,6 +186,7 @@ def k_fold_data_prep(args, samples=None):
     innermask = (data_all[:,0]>args.minmass) & (data_all[:,0]<args.maxmass)
     innerdata = data_all[innermask]
     outerdata = data_all[~innermask]
+    np.save(args.directory+"innerdata.npy",innerdata)
 
     if args.samples_weights is not None:
         samples_weights = np.load(args.samples_weights)
@@ -211,7 +240,6 @@ def k_fold_data_prep(args, samples=None):
     X_train = X_train[inds]
     Y_train = Y_train[inds]
     weights_train = weights_train[inds]
-
     if args.cl_norm:
         normalisation = no_logit_norm(X_train)
         X_train, _ = normalisation.forward(X_train)
