@@ -17,6 +17,7 @@ parser.add_argument('--samples_train_file', type=str, default="samples_outer.npy
 parser.add_argument('--samples_reweight_file', type=str, default="samples_inner.npy")
 parser.add_argument('--DE_direc', default=None, type=str)
 parser.add_argument('--directory', type=str, default = None)
+parser.add_argument('--input_set', type=str, choices=["baseline","extended1","extended2","extended3"], required=True)
 
 parser.add_argument('--inputs', default=4, type=int)
 parser.add_argument('--cl_logit', default=False, action="store_true")
@@ -28,6 +29,13 @@ parser.add_argument('--ensemble_over', default=50, type=int)
 parser.add_argument('--start_at_run', type=int, default=0)
 
 args = parser.parse_args()
+
+if args.input_set=="extended1":
+    args.inputs=10
+elif args.input_set=="extended2":
+    args.inputs=12
+elif args.input_set=="extended3":
+    args.inputs=56
 
 if args.DE_direc is not None:
 	args.bkg_file = args.DE_direc + args.bkg_file

@@ -105,18 +105,23 @@ class MAF:
     
     def sample(self, device, m, N):
         kernel = gaussian_kde(m)
-        m_samples = kernel.resample(size=int(N)).T
-        print(m_samples.shape)
-
-        with torch.inference_mode():
-            tensor_generated = self.flow.sample(
-                1 , 
-                context=torch.tensor(m_samples, device=device, dtype=torch.float32)
-            )
-        arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
-        samples = np.concatenate((m_samples, arr_generated), axis=1)
-        print(samples.shape)
-        return samples
+        sample_number = 1000000
+        all_samples = []
+        for i in range(N//sample_number):
+            m_samples = kernel.resample(size=int(sample_number)).T
+            with torch.inference_mode():
+                tensor_generated = self.flow.sample(
+                    1 , 
+                    context=torch.tensor(m_samples, device=device, dtype=torch.float32)
+                )
+            arr_generated = tensor_generated.detach().cpu().numpy()[:,0,:]
+            samples = np.concatenate((m_samples, arr_generated), axis=1)
+            all_samples.append(samples)
+            print(i)
+        all_samples=np.array(all_samples)
+        all_samples = np.reshape(all_samples, (all_samples.shape[0]*all_samples.shape[1], all_samples.shape[2]))
+        print(all_samples.shape)
+        return all_samples
 
 def sample(model, device, m, N, norm, directory, plot=True, testset=None, name="samples"):
     samples = model.sample(device, m, N)
