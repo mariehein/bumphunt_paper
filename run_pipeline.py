@@ -21,14 +21,17 @@ parser.add_argument('--extrabkg_file', type=str, default="/hpcwork/rwth0934/LHCO
 parser.add_argument('--signal_file', type=str, default=None)
 parser.add_argument('--three_pronged', default=False, action="store_true")
 parser.add_argument('--samples_file', default=None, type=str)
+parser.add_argument('--samples_ranit', default=False, action="store_true")
 parser.add_argument('--samples_weights', default=None, type=str)
 
 #Dataset preparation
 parser.add_argument('--signal_percentage', type=float, default=None, help="Second in priority order")
 parser.add_argument('--signal_number', type=int, default=None, help="Top priority")
+parser.add_argument('--fixed_oversampling', type=int, default=4)
 parser.add_argument('--N_train', type=int, default=320000)
 parser.add_argument('--minmass', type=float, default=3.3)#modified based on window number
 parser.add_argument('--maxmass', type=float, default=3.7)#modified based on window number
+parser.add_argument('--ssb_width', type=float, default=0.2)
 parser.add_argument('--cl_norm', default=True, action="store_false")
 parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--inputs', type=int, default=4)

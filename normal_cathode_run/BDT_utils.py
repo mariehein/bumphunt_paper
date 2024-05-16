@@ -19,4 +19,6 @@ def classifier_training(X_train, Y_train, train_weights, X_test, Y_test, args, r
         del tree
         del results_f
     test_results = np.mean(test_results, axis=0)
+    np.save(args.directory+"preds.npy", test_results)
+    np.save(args.directory+"labels.npy", Y_test)
     print("AUC last epoch: %.3f" % pf.plot_roc(test_results, Y_test,title="roc_classifier_averaging",directory=args.directory, save_AUC=args.sample_test))

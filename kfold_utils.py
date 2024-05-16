@@ -166,6 +166,8 @@ def k_fold_data_prep(args, samples=None):
 
     if args.mode=="cathode":
         samples_train = np.load(args.samples_file)
+        if args.samples_ranit:
+            samples_train=samples_train[:,:-1]
         samples_train = np.concatenate((samples_train, np.zeros((len(samples_train),1))), axis=1)
 
     if args.signal_number is not None:
@@ -192,7 +194,7 @@ def k_fold_data_prep(args, samples=None):
         samples_weights = np.load(args.samples_weights)
 
     if args.mode=="cwola":
-        mask = (outerdata[:,0]>args.minmass-0.2) & (outerdata[:,0]<args.maxmass+0.2)
+        mask = (outerdata[:,0]>args.minmass-args.ssb_width) & (outerdata[:,0]<args.maxmass+args.ssb_width)
         samples_train = outerdata[mask]
         if args.samples_weights is not None: 
             samples_weights = samples_weights[mask] 
@@ -205,6 +207,8 @@ def k_fold_data_prep(args, samples=None):
     indices = np.roll(np.array(range(5)),args.fold_number)
 
     if args.mode=="cathode":
+        if args.fixed_oversampling is not None:
+            args.N_train = len(innerdata)*4
         print("cathode")
         samples_test = samples_train[args.N_train:]
         samples_train = samples_train[:args.N_train]
