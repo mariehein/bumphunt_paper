@@ -242,6 +242,8 @@ def classifier_data_prep(args, samples=None):
     if args.samples_file is not None and args.samples_file!="cwola":
         if args.samples_file[-3:]=="npy":
             samples_train = np.load(args.samples_file)
+            if args.samples_ranit:
+                samples_train=samples_train[:,:-1]
             samples_train = np.concatenate((samples_train, np.zeros((len(samples_train),1))), axis=1)
         else:
             samples_train = file_loading(args.samples_file, args, labels=False)

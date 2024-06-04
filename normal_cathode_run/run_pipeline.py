@@ -20,6 +20,7 @@ parser.add_argument('--data_file', type=str, default="/hpcwork/rwth0934/LHCO_dat
 parser.add_argument('--extrabkg_file', type=str, default="/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_DelphesPythia8_v2_qcd_extra_inneronly_combined_extratau_2_features.h5")
 parser.add_argument('--signal_file', type=str, default=None)
 parser.add_argument('--samples_file', type=str, default=None)
+parser.add_argument('--samples_ranit', default=False, action="store_true")
 parser.add_argument('--samples_weights', type=str, default=None)
 parser.add_argument('--three_pronged', default=False, action="store_true")
 

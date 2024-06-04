@@ -142,27 +142,34 @@ def DR(filename, labels=True):
 
 def k_fold_data_prep(args, samples=None):
     data = file_loading(args.data_file, args)
-    extra_bkg = file_loading(args.extrabkg_file, args, labels=False)
+    if args.mode=="IAD":
+        extra_bkg = file_loading(args.extrabkg_file, args, labels=False)
     if args.signal_file is not None: 
         data_signal = file_loading(args.signal_file, args, labels=False, signal=1)
 
-    if args.signal_file is not None: 
-        sig = data_signal
-    else:
-        sig = data[data[:,-1]==1]
+    if not args.Herwig:
+        if args.signal_file is not None: 
+            sig = data_signal
+        else:
+            sig = data[data[:,-1]==1]
         
     if args.include_DeltaR:
         data_DR = DR(args.data_file)
         data = np.concatenate((data[:,:args.inputs],np.array([data_DR]).T, data[:,args.inputs:]),axis=1)
-        extra_bkg_DR = DR(args.extrabkg_file)
-        extra_bkg = np.concatenate((extra_bkg[:,:args.inputs],np.array([extra_bkg_DR]).T, extra_bkg[:,args.inputs:]),axis=1)
-        if args.signal_file is not None:
-            sig_DR = DR(args.signal_file, labels=False)
-            sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
-        else:
-            sig = data[data[:,-1]==1]
+        if args.mode=="IAD":
+            extra_bkg_DR = DR(args.extrabkg_file)
+            extra_bkg = np.concatenate((extra_bkg[:,:args.inputs],np.array([extra_bkg_DR]).T, extra_bkg[:,args.inputs:]),axis=1)
+        if not args.Herwig:
+            if args.signal_file is not None:
+                sig_DR = DR(args.signal_file, labels=False)
+                sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
+            else:
+                sig = data[data[:,-1]==1]
     bkg = data[data[:,-1]==0]
-    print(len(bkg), len(sig))
+    if not args.Herwig:
+        print(len(bkg), len(sig))
+    else: 
+        print(len(bkg))
 
     if args.mode=="cathode":
         samples_train = np.load(args.samples_file)
@@ -178,12 +185,17 @@ def k_fold_data_prep(args, samples=None):
         n_sig = int(args.signal_percentage*1000/0.6361658645922605)
     print("n_sig=", n_sig)
 
-    data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
-    np.random.seed(args.set_seed)
-    np.random.shuffle(data_all)
-    extra_sig = sig[n_sig:]
-    innersig_mask = (extra_sig[:,0]>args.minmass) & (extra_sig[:,0]<args.maxmass)
-    inner_extra_sig = extra_sig[innersig_mask]
+    if not args.Herwig:
+        data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
+        np.random.seed(args.set_seed)
+        np.random.shuffle(data_all)
+        extra_sig = sig[n_sig:]
+        innersig_mask = (extra_sig[:,0]>args.minmass) & (extra_sig[:,0]<args.maxmass)
+        inner_extra_sig = extra_sig[innersig_mask]
+    else: 
+        data_all = bkg
+        np.random.seed(args.set_seed)
+        np.random.shuffle(data_all)   
 
     innermask = (data_all[:,0]>args.minmass) & (data_all[:,0]<args.maxmass)
     innerdata = data_all[innermask]

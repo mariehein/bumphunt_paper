@@ -26,11 +26,15 @@ parser.add_argument('--window_number', type=int, default=None)
 parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--inputs', type=int, default=4)
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
+parser.add_argument('--Herwig', default=False, action="store_true")
 
 args = parser.parse_args()
 
 if not os.path.exists(args.directory):
 	os.makedirs(args.directory)
+     
+if args.Herwig:
+    args.data_file = "/hpcwork/rwth0934/LHCO_dataset/Herwig/events_anomalydetection_herwig.extratau_2.features.h5"
 
 if args.input_set=="extended1":
     args.inputs=10
@@ -214,21 +218,26 @@ def make_DE_data(args):
     if args.signal_file is not None: 
         data_signal = file_loading(args.signal_file, args, labels=False, signal=1)
 
-    if args.signal_file is not None: 
-        sig = data_signal
-    else:
-        sig = data[data[:,-1]==1]
+    if not args.Herwig:
+        if args.signal_file is not None: 
+            sig = data_signal
+        else:
+            sig = data[data[:,-1]==1]
 
     if args.include_DeltaR:
         data_DR = DR(args.data_file)
         data = np.concatenate((data[:,:args.inputs],np.array([data_DR]).T, data[:,args.inputs:]),axis=1)
-        if args.signal_file is not None:
-            sig_DR = DR(args.signal_file, labels=False)
-            sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
-        else:
-            sig = data[data[:,-1]==1]
+        if not args.Herwig:
+            if args.signal_file is not None:
+                sig_DR = DR(args.signal_file, labels=False)
+                sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
+            else:
+                sig = data[data[:,-1]==1]
     bkg = data[data[:,-1]==0]
-    print(len(bkg), len(sig))
+    if not args.Herwig:
+        print(len(bkg), len(sig))
+    else: 
+        print(len(bkg))
 
     if args.signal_number is not None:
         n_sig=args.signal_number
@@ -238,7 +247,10 @@ def make_DE_data(args):
         n_sig = int(args.signal_percentage*1000/0.6361658645922605)
     print("n_sig=", n_sig)
 
-    data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
+    if not args.Herwig:
+        data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
+    else:
+        data_all = bkg
     np.random.seed(args.set_seed)
     np.random.shuffle(data_all)
 

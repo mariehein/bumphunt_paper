@@ -35,8 +35,10 @@ parser.add_argument('--ssb_width', type=float, default=0.2)
 parser.add_argument('--cl_norm', default=True, action="store_false")
 parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--inputs', type=int, default=4)
+parser.add_argument('--inputs_custom', type=int, default=None)
 parser.add_argument('--randomize_seed', default=False, action="store_true")
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
+parser.add_argument('--Herwig', default=False, action="store_true")
 
 
 #General classifier Arguments
@@ -59,8 +61,15 @@ elif args.input_set=="extended3":
 if args.include_DeltaR:
     args.inputs+=1
 
+if args.inputs_custom is not None:
+    args.inputs = args.inputs_custom
+
+
 if args.three_pronged:
 	args.signal_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_Z_XY_qqq.extratau_2.features.h5"
+     
+if args.Herwig:
+    args.data_file = "/hpcwork/rwth0934/LHCO_dataset/Herwig/events_anomalydetection_herwig.extratau_2.features.h5"
 
 args.minmass = (args.window_number-5)*0.1+3.3
 args.maxmass = (args.window_number-5)*0.1+3.7
