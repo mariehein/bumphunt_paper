@@ -147,7 +147,7 @@ def k_fold_data_prep(args, samples=None):
     if args.signal_file is not None: 
         data_signal = file_loading(args.signal_file, args, labels=False, signal=1)
 
-    if not args.Herwig:
+    if not args.Herwig and not args.Joep:
         if args.signal_file is not None: 
             sig = data_signal
         else:
@@ -159,14 +159,14 @@ def k_fold_data_prep(args, samples=None):
         if args.mode=="IAD":
             extra_bkg_DR = DR(args.extrabkg_file)
             extra_bkg = np.concatenate((extra_bkg[:,:args.inputs],np.array([extra_bkg_DR]).T, extra_bkg[:,args.inputs:]),axis=1)
-        if not args.Herwig:
+        if not args.Herwig and not args.Joep:
             if args.signal_file is not None:
                 sig_DR = DR(args.signal_file, labels=False)
                 sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
             else:
                 sig = data[data[:,-1]==1]
     bkg = data[data[:,-1]==0]
-    if not args.Herwig:
+    if not args.Herwig and not args.Joep:
         print(len(bkg), len(sig))
     else: 
         print(len(bkg))
@@ -185,7 +185,7 @@ def k_fold_data_prep(args, samples=None):
         n_sig = int(args.signal_percentage*1000/0.6361658645922605)
     print("n_sig=", n_sig)
 
-    if not args.Herwig:
+    if not args.Herwig and not args.Joep:
         data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
         np.random.seed(args.set_seed)
         np.random.shuffle(data_all)

@@ -21,6 +21,9 @@ parser.add_argument('--extrabkg_file', type=str, default="/hpcwork/rwth0934/LHCO
 parser.add_argument('--signal_file', type=str, default=None)
 parser.add_argument('--three_pronged', default=False, action="store_true")
 parser.add_argument('--samples_file', default=None, type=str)
+parser.add_argument('--samples_file_array', default=False, action="store_true")
+parser.add_argument('--samples_file_start', default=None, type=str)
+parser.add_argument('--samples_file_ending', default=None, type=str)
 parser.add_argument('--samples_ranit', default=False, action="store_true")
 parser.add_argument('--samples_weights', default=None, type=str)
 
@@ -39,6 +42,7 @@ parser.add_argument('--inputs_custom', type=int, default=None)
 parser.add_argument('--randomize_seed', default=False, action="store_true")
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
 parser.add_argument('--Herwig', default=False, action="store_true")
+parser.add_argument('--Joep', default=False, action="store_true")
 
 
 #General classifier Arguments
@@ -70,6 +74,8 @@ if args.three_pronged:
      
 if args.Herwig:
     args.data_file = "/hpcwork/rwth0934/LHCO_dataset/Herwig/events_anomalydetection_herwig.extratau_2.features.h5"
+if args.Joep:
+    args.data_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_joep.extratau_2.features.h5"
 
 args.minmass = (args.window_number-5)*0.1+3.3
 args.maxmass = (args.window_number-5)*0.1+3.7
@@ -79,7 +85,7 @@ if args.mode=="IAD" and args.window_number!=5:
 
 print(args)
 
-if not args.randomize_seed:
+if not args.randomize_seed and not args.samples_file_array:
     X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
 for i in range(args.start_at_run, args.N_runs):
     print()
@@ -89,5 +95,8 @@ for i in range(args.start_at_run, args.N_runs):
     print()
     if args.randomize_seed:
         args.set_seed = i
+        X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
+    if args.samples_file_array: 
+        args.samples_file = args.samples_file_start + str(i+1) + args.samples_file_ending
         X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
     BDT.classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, i)
