@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 #For SIC curve reproduction only these 5 option need to be changed
-parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode", "IAD_scan"], required=True)
+parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode", "IAD_scan", "IAD_joep"], required=True)
 parser.add_argument('--fold_number', type=int, required=True)
 parser.add_argument('--window_number', type=int, required=True)
 parser.add_argument('--directory', type=str, required=True)
@@ -19,6 +19,7 @@ parser.add_argument('--input_set', type=str, choices=["baseline","extended1","ex
 parser.add_argument('--data_file', type=str, default="/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_v2.extratau_2.features.h5")
 parser.add_argument('--extrabkg_file', type=str, default="/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_DelphesPythia8_v2_qcd_extra_inneronly_combined_extratau_2_features.h5")
 parser.add_argument('--signal_file', type=str, default=None)
+parser.add_argument('--DE_data_file', type=str, default=None)
 parser.add_argument('--three_pronged', default=False, action="store_true")
 parser.add_argument('--samples_file', default=None, type=str)
 parser.add_argument('--samples_file_array', default=False, action="store_true")
@@ -43,6 +44,10 @@ parser.add_argument('--randomize_seed', default=False, action="store_true")
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
 parser.add_argument('--Herwig', default=False, action="store_true")
 parser.add_argument('--Joep', default=False, action="store_true")
+parser.add_argument('--cathode_on_SBs', default=False, action="store_true")
+parser.add_argument('--cathode_on_SSBs', default=False, action="store_true")
+parser.add_argument('--cathode_on_DE', default=False, action='store_true')
+parser.add_argument('--select_SB_data', default=True, action='store_false')
 
 
 #General classifier Arguments
@@ -51,6 +56,11 @@ parser.add_argument('--ensemble_over', default=50, type=int)
 parser.add_argument('--start_at_run', type=int, default=0)
 
 args = parser.parse_args()
+
+if args.cathode_on_SSBs:
+    args.cathode_on_SBs = True
+    #args.select_SB_data = False
+
 
 if not os.path.exists(args.directory):
 	os.makedirs(args.directory)
@@ -68,6 +78,8 @@ if args.include_DeltaR:
 if args.inputs_custom is not None:
     args.inputs = args.inputs_custom
 
+if args.mode=="IAD_joep":
+    args.Joep=True
 
 if args.three_pronged:
 	args.signal_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_Z_XY_qqq.extratau_2.features.h5"
@@ -75,7 +87,8 @@ if args.three_pronged:
 if args.Herwig:
     args.data_file = "/hpcwork/rwth0934/LHCO_dataset/Herwig/events_anomalydetection_herwig.extratau_2.features.h5"
 if args.Joep:
-    args.data_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_joep.extratau_2.features.h5"
+    args.data_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_joep_all.extratau_2.features.h5"
+    args.extrabkg_file = "/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_joep_extrabkg.extratau_2.features.h5"
 
 args.minmass = (args.window_number-5)*0.1+3.3
 args.maxmass = (args.window_number-5)*0.1+3.7
@@ -93,10 +106,12 @@ for i in range(args.start_at_run, args.N_runs):
     print()
     print("Classifier run no. ", i)
     print()
-    if args.randomize_seed:
+    if args.randomize_seed and not args.samples_file_array:
         args.set_seed = i
         X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
     if args.samples_file_array: 
+        if args.randomize_seed:
+            args.set_seed = i
         args.samples_file = args.samples_file_start + str(i+1) + args.samples_file_ending
         X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
     BDT.classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, i)

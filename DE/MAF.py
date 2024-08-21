@@ -17,6 +17,7 @@ parser.add_argument('--conditional_inputs', type=int, default=1)
 parser.add_argument('--N_samples', type=int, default=1000000)
 parser.add_argument('--DE_filename', type=str, default="MAF.yml")
 parser.add_argument('--data_direc', type=str, default = "data/baseline_without/")
+parser.add_argument('--DE_data_direc', type=str, default = "data/baseline_without/")
 
 #parser.add_argument('--DE_N_best_epochs', type=int, default=10)
 #parser.add_argument('--no_averaging', default=True, action="store_false")
@@ -32,6 +33,8 @@ parser.add_argument("--blocks", default = 1, type=int)
 parser.add_argument("--learning_rate", default = 1e-3, type=float)
 parser.add_argument('--save_models', default=False, action="store_true")
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
+parser.add_argument('--train_on_SR', default=False, action="store_true")
+parser.add_argument('--train_on_DE', default=False, action="store_true")
 
 args = parser.parse_args()
 print(args)
@@ -94,9 +97,22 @@ class logit_norm:
             array[:, i] = array[:, i] * self.max[i] + self.shift[i]
         return array
 
-data = np.load(args.data_direc+"outerdata.npy")[:,:args.inputs+1]
+if args.train_on_SR:
+    data = np.load(args.data_direc+"innerdata.npy")[:,:args.inputs+1]
+elif args.train_on_DE:
+    data = np.load(args.data_direc+"outerdata.npy")[:,:args.inputs+1]
+    N = len(data)
+    data = np.load(args.DE_data_direc+"samples_outer.npy")[:N,:args.inputs+1]
+else:    
+    data = np.load(args.data_direc+"outerdata.npy")[:,:args.inputs+1]
 print(data.shape)
-inner = np.load(args.data_direc+"innerdata.npy")[:,:args.inputs+1]
+
+if args.train_on_DE:
+    inner = np.load(args.data_direc+"innerdata.npy")[:,:args.inputs+1]
+    N = len(inner)
+    inner = np.load(args.DE_data_direc+"samples_inner.npy")[:N,:args.inputs+1]
+else:
+    inner = np.load(args.data_direc+"innerdata.npy")[:,:args.inputs+1]
 print(inner.shape)
 train_val_test=np.array([0.6, 0.8])
 N = len(data)

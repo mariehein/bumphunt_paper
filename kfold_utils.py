@@ -142,12 +142,12 @@ def DR(filename, labels=True):
 
 def k_fold_data_prep(args, samples=None):
     data = file_loading(args.data_file, args)
-    if args.mode=="IAD":
+    if args.mode=="IAD" or args.mode=="IAD_joep":
         extra_bkg = file_loading(args.extrabkg_file, args, labels=False)
     if args.signal_file is not None: 
         data_signal = file_loading(args.signal_file, args, labels=False, signal=1)
 
-    if not args.Herwig and not args.Joep:
+    if not args.Herwig:
         if args.signal_file is not None: 
             sig = data_signal
         else:
@@ -156,10 +156,10 @@ def k_fold_data_prep(args, samples=None):
     if args.include_DeltaR:
         data_DR = DR(args.data_file)
         data = np.concatenate((data[:,:args.inputs],np.array([data_DR]).T, data[:,args.inputs:]),axis=1)
-        if args.mode=="IAD":
+        if args.mode=="IAD" or args.mode=="IAD_joep":
             extra_bkg_DR = DR(args.extrabkg_file)
             extra_bkg = np.concatenate((extra_bkg[:,:args.inputs],np.array([extra_bkg_DR]).T, extra_bkg[:,args.inputs:]),axis=1)
-        if not args.Herwig and not args.Joep:
+        if not args.Herwig:
             if args.signal_file is not None:
                 sig_DR = DR(args.signal_file, labels=False)
                 sig = np.concatenate((sig[:,:args.inputs],np.array([sig_DR]).T, sig[:,args.inputs:]),axis=1)
@@ -175,6 +175,9 @@ def k_fold_data_prep(args, samples=None):
         samples_train = np.load(args.samples_file)
         if args.samples_ranit:
             samples_train=samples_train[:,:-1]
+        if args.cathode_on_SSBs:
+            mask = (samples_train[:,0]>args.minmass-args.ssb_width) & (samples_train[:,0]<args.maxmass+args.ssb_width)
+            samples_train = samples_train[mask]
         samples_train = np.concatenate((samples_train, np.zeros((len(samples_train),1))), axis=1)
 
     if args.signal_number is not None:
@@ -185,7 +188,7 @@ def k_fold_data_prep(args, samples=None):
         n_sig = int(args.signal_percentage*1000/0.6361658645922605)
     print("n_sig=", n_sig)
 
-    if not args.Herwig and not args.Joep:
+    if not args.Herwig:
         data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
         np.random.seed(args.set_seed)
         np.random.shuffle(data_all)
@@ -201,6 +204,22 @@ def k_fold_data_prep(args, samples=None):
     innerdata = data_all[innermask]
     outerdata = data_all[~innermask]
     np.save(args.directory+"innerdata.npy",innerdata)
+    if args.mode == "cathode" and args.cathode_on_SBs:
+        N = len(innerdata)
+        if args.cathode_on_SSBs:
+            mask = (outerdata[:,0]>args.minmass-args.ssb_width) & (outerdata[:,0]<args.maxmass+args.ssb_width)
+            innerdata = outerdata[mask]
+        else:
+            innerdata = outerdata
+        if args.select_SB_data:
+            np.random.shuffle(innerdata)
+            innerdata = innerdata[:N]
+
+    elif args.mode=="cathode" and args.cathode_on_DE:
+        innerdata = np.load(args.DE_data_file)
+    elif not args.mode == "cathode" and args.cathode_on_DE:
+        raise ValueError("Only cathode supported with run on DE")
+
 
     if args.samples_weights is not None:
         samples_weights = np.load(args.samples_weights)
@@ -214,7 +233,11 @@ def k_fold_data_prep(args, samples=None):
         samples_train = extra_bkg[40000:312858]
     elif args.mode=="IAD_scan":
         innerdata, samples_train = np.array_split(innerdata, 2)
-        samples_train = samples_train[samples_train[:,-1]==0] 
+        samples_train = samples_train[samples_train[:,-1]==0]
+    elif args.mode=="IAD_joep":
+        innermask = (extra_bkg[:,0]>args.minmass) & (extra_bkg[:,0]<args.maxmass)
+        extra_bkg = extra_bkg[innermask]
+        samples_train = extra_bkg[:len(innerdata)]
 
     indices = np.roll(np.array(range(5)),args.fold_number)
 
