@@ -129,15 +129,10 @@ def DR(filename, labels=True):
 	else: 
 		features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
 		features = np.concatenate((features,np.zeros((len(features),1))),axis=1)
-
-	phi1 = np.arctan2(features[:,1], features[:,0])
-	phi2 = np.arctan2(features[:,8], features[:,7])
-	Dphi = np.abs(phi2-phi1)
-	Dphi = Dphi - np.where(Dphi>np.pi*2, 2*np.pi,0)
+	Dphi = np.arccos((features[:,0]*features[:,7]+features[:,1]*features[:,8])/(np.sqrt(features[:,1]**2+features[:,0]**2)*np.sqrt(features[:,7]**2+features[:,8]**2)))
 	eta1 = np.arcsinh(features[:,2]/np.sqrt(features[:,1]**2+ features[:,0]**2))
 	eta2 = np.arcsinh(features[:,9]/np.sqrt(features[:,7]**2+ features[:,8]**2))
 	DR = np.sqrt((Dphi)**2 + (eta1-eta2)**2)
-
 	return DR
 
 def k_fold_data_prep(args, samples=None):
