@@ -50,11 +50,11 @@ def sig(N, b, err):
     x[x<0]=0
     return np.sqrt(x)
 
-def significances(N_after, N, N_sig, N_bkg, N_samples_after, eff, err):
+def significances(N_after, N, N_sig, N_bkg, N_samples_after, eff, err, err_err):
     N_b_exp = eff*N*(1+err)
     stat_err = np.sqrt(1/N_b_exp+1/N_samples_after)
     samples_err = np.sqrt(1/N_samples_after)
-    formular_err = N_b_exp * np.sqrt(samples_err**2+err**2)
+    formular_err = N_b_exp * np.sqrt(samples_err**2+err_err**2)
     full_err = N_b_exp * np.sqrt(stat_err**2+err**2)
     results = sig(N_after, N*eff, np.zeros(N_b_exp.shape))#(N_after-N*eff)/stat_err
     rel_results = sig(N_after, N_b_exp, formular_err)#(N_after - N_b_exp)/full_err
@@ -62,7 +62,7 @@ def significances(N_after, N, N_sig, N_bkg, N_samples_after, eff, err):
     rel_error = (N_after-N*eff)/(eff*N)
     return results, rel_results, true_results, rel_error, stat_err
 
-def bump_hunt_single_window(folder, window, err=None, runs=10, turn_around=False):
+def bump_hunt_single_window(folder, window, err=None, err_err=None, runs=10, turn_around=False):
     results = np.zeros((len(BH_percentiles),runs))
     true_results =  np.zeros((len(BH_percentiles),runs))
     rel_results =  np.zeros((len(BH_percentiles),runs))
@@ -106,13 +106,14 @@ def bump_hunt_single_window(folder, window, err=None, runs=10, turn_around=False
 
     if err is None:
         err = np.zeros(len(BH_percentiles))
+        err_err = np.zeros(len(BH_percentiles))
 		
     for j, perc in enumerate(BH_percentiles):
-        results[j], rel_results[j], true_results[j], rel_error[j], stat_error[j] = significances(N_after[j], N[j], N_sig[j], N_bkg[j], N_samples_after[j], eff_eff[j], err[j])
+        results[j], rel_results[j], true_results[j], rel_error[j], stat_error[j] = significances(N_after[j], N[j], N_sig[j], N_bkg[j], N_samples_after[j], eff_eff[j], err[j], err_err[j])
 
     return results, rel_results, true_results, rel_error, stat_error, [N_after, N, N_sig, N_bkg, N_samples_after, eff_eff]
 
-def bump_hunt(folder, err=None, runs=10, turn_around=False, reuse=False):
+def bump_hunt(folder, err=None, err_err=None, runs=10, turn_around=False, reuse=False):
     print(folder)
 
     results = np.zeros((len(BH_percentiles),9,runs))
@@ -122,15 +123,18 @@ def bump_hunt(folder, err=None, runs=10, turn_around=False, reuse=False):
     exp =  np.zeros((len(BH_percentiles),9,runs))
     res = {}
 
+    if err_err is None:
+        err_err = err
+
     for window in range(9):
-        results[:,window], rel_results[:,window], true_results[:,window], rel_error[:,window], exp[:,window], res["window"+str(window+1)] = bump_hunt_single_window(folder+"window"+str(window+1)+"_", window, err=err, runs=runs, turn_around=turn_around)
+        results[:,window], rel_results[:,window], true_results[:,window], rel_error[:,window], exp[:,window], res["window"+str(window+1)] = bump_hunt_single_window(folder+"window"+str(window+1)+"_", window, err=err, runs=runs, turn_around=turn_around, err_err=err_err)
     #print(res, reuse)
     if reuse:
         return results, rel_results, true_results, rel_error, exp, res
 
     return results, rel_results, true_results, rel_error, exp
 
-def bump_hunt_reuse(res, err=None, runs=10):
+def bump_hunt_reuse(res, err=None, err_err=None, runs=10):
 
     results = np.zeros((len(BH_percentiles),9,runs))
     true_results =  np.zeros((len(BH_percentiles),9,runs))
@@ -138,10 +142,12 @@ def bump_hunt_reuse(res, err=None, runs=10):
     rel_error =  np.zeros((len(BH_percentiles),9,runs))
     exp =  np.zeros((len(BH_percentiles),9,runs))
 
+    if err_err is None:
+        err_err = err
     for window in range(9):
         N_after, N, N_sig, N_bkg, N_samples_after, eff_eff = res["window"+str(window+1)]
         for j, perc in enumerate(BH_percentiles):
-            results[j,window], rel_results[j,window], true_results[j,window], rel_error[j,window], exp[j,window] = significances(N_after[j], N[j], N_sig[j], N_bkg[j], N_samples_after[j], eff_eff[j], err[j])
+            results[j,window], rel_results[j,window], true_results[j,window], rel_error[j,window], exp[j,window] = significances(N_after[j], N[j], N_sig[j], N_bkg[j], N_samples_after[j], eff_eff[j], err[j], err_err[j])
 
     return results, rel_results, true_results, rel_error, exp
 

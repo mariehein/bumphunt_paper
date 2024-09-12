@@ -112,6 +112,9 @@ for i in range(args.start_at_run, args.N_runs):
     if args.samples_file_array: 
         if args.randomize_seed:
             args.set_seed = i
-        args.samples_file = args.samples_file_start + str(i+1) + args.samples_file_ending
+        if args.samples_ranit:
+            args.samples_file = args.samples_file_start + str(i) + args.samples_file_ending
+        else:
+            args.samples_file = args.samples_file_start + str(i+1) + args.samples_file_ending
         X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
     BDT.classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, i)
