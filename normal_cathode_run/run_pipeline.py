@@ -38,6 +38,7 @@ parser.add_argument('--randomize_seed', default=False, action="store_true")
 parser.add_argument('--sample_test', default=False, action="store_true")
 parser.add_argument('--inputs', type=int, default=4)
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
+parser.add_argument('--reduced_stats', default=False, action="store_true")
 
 #2D scan
 parser.add_argument('--scan_2D', default=False, action="store_true")
@@ -93,6 +94,11 @@ print(args)
 if not args.scan_2D:
     if not args.randomize_seed:
         X_train, Y_train, train_weights, X_test, Y_test = dp.classifier_data_prep(args)
+        if args.reduced_stats:
+            train_len = int(len(X_train)*0.8)
+            X_train = X_train[:train_len]
+            Y_train = Y_train[:train_len]
+            train_weights = train_weights[:train_len]
     for i in range(args.start_at_run, args.N_runs):
         print()
         print("------------------------------------------------------")
@@ -102,6 +108,11 @@ if not args.scan_2D:
         args.set_seed = i
         if args.randomize_seed:
             X_train, Y_train, train_weights, X_test, Y_test = dp.classifier_data_prep(args)
+            if args.reduced_stats:
+                train_len = int(len(X_train)*0.8)
+                X_train = X_train[:train_len]
+                Y_train = Y_train[:train_len]
+                train_weights = train_weights[:train_len]
         BDT.classifier_training(X_train, Y_train, train_weights, X_test, Y_test, args, i)
 
 else: 

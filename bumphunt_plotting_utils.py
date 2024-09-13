@@ -80,6 +80,7 @@ def bump_hunt_single_window(folder, window, err=None, err_err=None, runs=10, tur
 
     for fold in range(5): 
         f = folder +"fold"+str(fold)+"/"
+        #print(f)
         if turn_around: 
             samples_preds = np.load(f+"test_preds.npy")
             #print(samples_preds.shape)
