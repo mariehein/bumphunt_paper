@@ -27,6 +27,7 @@ parser.add_argument('--samples_file_start', default=None, type=str)
 parser.add_argument('--samples_file_ending', default=None, type=str)
 parser.add_argument('--samples_ranit', default=False, action="store_true")
 parser.add_argument('--samples_weights', default=None, type=str)
+parser.add_argument('--extra_signal_predictions', default=False, action="store_true")
 
 #Dataset preparation
 parser.add_argument('--signal_percentage', type=float, default=None, help="Second in priority order")
@@ -41,6 +42,7 @@ parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--inputs', type=int, default=4)
 parser.add_argument('--inputs_custom', type=int, default=None)
 parser.add_argument('--randomize_seed', default=False, action="store_true")
+parser.add_argument('--randomize_signal', default=None, type=int)
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
 parser.add_argument('--Herwig', default=False, action="store_true")
 parser.add_argument('--Joep', default=False, action="store_true")
@@ -98,23 +100,27 @@ if args.mode=="IAD" and args.window_number!=5:
 
 print(args)
 
-if not args.randomize_seed and not args.samples_file_array:
-    X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
+if not args.randomize_seed and not args.randomize_signal and not args.samples_file_array:
+    X_train, Y_train, X_test, Y_test, samples_test, signal_test, train_weights = dp.k_fold_data_prep(args)
 for i in range(args.start_at_run, args.N_runs):
     print()
     print("------------------------------------------------------")
     print()
     print("Classifier run no. ", i)
     print()
-    if args.randomize_seed and not args.samples_file_array:
+    if args.randomize_seed or args.randomize_signal is not None and not args.samples_file_array:
         args.set_seed = i
-        X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
+        if args.randomize_signal is not None: 
+            args.randomize_signal = i
+        X_train, Y_train, X_test, Y_test, samples_test, signal_test, train_weights = dp.k_fold_data_prep(args)
     if args.samples_file_array: 
         if args.randomize_seed:
             args.set_seed = i
+        if args.randomize_signal is not None: 
+            args.randomize_signal = i
         if args.samples_ranit:
             args.samples_file = args.samples_file_start + str(i) + args.samples_file_ending
         else:
             args.samples_file = args.samples_file_start + str(i+1) + args.samples_file_ending
-        X_train, Y_train, X_test, Y_test, samples_test, train_weights = dp.k_fold_data_prep(args)
-    BDT.classifier_training(X_train, Y_train, X_test, samples_test, train_weights, args, i)
+        X_train, Y_train, X_test, Y_test, samples_test, signal_test, train_weights = dp.k_fold_data_prep(args)
+    BDT.classifier_training(X_train, Y_train, X_test, Y_test, samples_test, signal_test, train_weights, args, i)

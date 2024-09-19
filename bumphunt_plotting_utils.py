@@ -101,8 +101,10 @@ def bump_hunt_single_window(folder, window, err=None, err_err=None, runs=10, tur
     N_samples = np.sum(N_samples, axis=0)
     N_after = np.sum(N_after, axis=0)
     N = np.sum(N, axis=0)
+    #print(N)
     N_bkg = np.sum(N_bkg, axis=0)
     N_sig = np.sum(N_sig, axis=0)
+    #print(N_sig)
     eff_eff = N_samples_after/N_samples
 
     if err is None:

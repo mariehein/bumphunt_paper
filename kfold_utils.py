@@ -183,6 +183,10 @@ def k_fold_data_prep(args, samples=None):
         n_sig = int(args.signal_percentage*1000/0.6361658645922605)
     print("n_sig=", n_sig)
 
+    if args.randomize_signal is not None and not args.Herwig:
+        np.random.seed(args.randomize_signal)
+        np.random.shuffle(sig)
+
     if not args.Herwig:
         data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
         np.random.seed(args.set_seed)
@@ -268,6 +272,8 @@ def k_fold_data_prep(args, samples=None):
     Y_test = X_test[:,-1]
     X_test = X_test[:, 1:args.inputs+1]
     samples_test = samples_test[:,1:args.inputs+1]
+    if not args.Herwig:
+        signal_test = inner_extra_sig[:,1:args.inputs+1]
 
     inds = np.arange(len(X_train))
     np.random.shuffle(inds)
@@ -279,8 +285,10 @@ def k_fold_data_prep(args, samples=None):
         X_train, _ = normalisation.forward(X_train)
         X_test, _ = normalisation.forward(X_test)
         samples_test, _ = normalisation.forward(samples_test)
+        if not args.Herwig:
+            signal_test, _ = normalisation.forward(signal_test)
     print("Train set: ", len(X_train), "; Test set: ", len(X_test))
 
     np.save(args.directory+"Y_test.npy", Y_test)
 
-    return X_train, Y_train, X_test, Y_test, samples_test, weights_train
+    return X_train, Y_train, X_test, Y_test, samples_test, signal_test, weights_train

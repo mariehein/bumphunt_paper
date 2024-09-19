@@ -260,6 +260,10 @@ def classifier_data_prep(args, samples=None):
         n_sig = int(args.signal_percentage*1000/0.6361658645922605)
     print("n_sig=", n_sig)
 
+    if args.randomize_signal is not None:
+        np.random.seed(args.randomize_signal)
+        np.random.shuffle(sig)
+
     data_all = np.concatenate((bkg,sig[:n_sig]),axis=0)
     np.random.seed(args.set_seed)
     np.random.shuffle(data_all)
@@ -300,15 +304,27 @@ def classifier_data_prep(args, samples=None):
         else:
             X_train = X_train[:,1:args.inputs+1]
     elif args.mode=="IAD":
-        if args.gaussian_inputs is not None:
-            X_train = np.concatenate((innerdata[:120000,1:args.N_normal_inputs+1],samples_train[:,1:args.N_normal_inputs+1]),axis=0)
-            gauss = np.random.normal(size=(len(X_train),args.inputs-args.N_normal_inputs))
-            X_train = np.concatenate((X_train,gauss), axis=1)
-            print(X_train.shape)
+        if args.reduced_stats:
+            N = int(0.8*120000)
+            if args.gaussian_inputs is not None:
+                X_train = np.concatenate((innerdata[:N,1:args.N_normal_inputs+1],samples_train[:N,1:args.N_normal_inputs+1]),axis=0)
+                gauss = np.random.normal(size=(len(X_train),args.inputs-args.N_normal_inputs))
+                X_train = np.concatenate((X_train,gauss), axis=1)
+                print(X_train.shape)
+            else:
+                X_train = np.concatenate((innerdata[:N,1:args.inputs+1],samples_train[:N,1:args.inputs+1]),axis=0)
+            Y_train = np.concatenate((np.ones(N),np.zeros(N)),axis=0)	
+            train_weights = np.concatenate((np.ones(N),samples_weights[:N]), axis=0)	
         else:
-            X_train = np.concatenate((innerdata[:120000,1:args.inputs+1],samples_train[:,1:args.inputs+1]),axis=0)
-        Y_train = np.concatenate((np.ones(len(X_train)-len(samples_train)),np.zeros(len(samples_train))),axis=0)	
-        train_weights = np.concatenate((np.ones(len(X_train)-len(samples_train)),samples_weights), axis=0)	
+            if args.gaussian_inputs is not None:
+                X_train = np.concatenate((innerdata[:120000,1:args.N_normal_inputs+1],samples_train[:,1:args.N_normal_inputs+1]),axis=0)
+                gauss = np.random.normal(size=(len(X_train),args.inputs-args.N_normal_inputs))
+                X_train = np.concatenate((X_train,gauss), axis=1)
+                print(X_train.shape)
+            else:
+                X_train = np.concatenate((innerdata[:120000,1:args.inputs+1],samples_train[:,1:args.inputs+1]),axis=0)
+            Y_train = np.concatenate((np.ones(len(X_train)-len(samples_train)),np.zeros(len(samples_train))),axis=0)	
+            train_weights = np.concatenate((np.ones(len(X_train)-len(samples_train)),samples_weights), axis=0)	
     else: 
         raise ValueError('Wrong --args.mode given')
 

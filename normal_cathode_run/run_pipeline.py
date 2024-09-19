@@ -35,6 +35,7 @@ parser.add_argument('--N_normal_inputs', default=4, type=int, help="Needed only 
 parser.add_argument('--supervised_normal_signal', default=False, action="store_true")
 parser.add_argument('--set_seed', type=int, default=1)
 parser.add_argument('--randomize_seed', default=False, action="store_true")
+parser.add_argument('--randomize_signal', default=None, type=int)
 parser.add_argument('--sample_test', default=False, action="store_true")
 parser.add_argument('--inputs', type=int, default=4)
 parser.add_argument('--include_DeltaR', default=False, action="store_true")
@@ -92,13 +93,8 @@ if args.signal_significance is not None:
 print(args)
 
 if not args.scan_2D:
-    if not args.randomize_seed:
+    if not args.randomize_seed and args.randomize_signal is None:
         X_train, Y_train, train_weights, X_test, Y_test = dp.classifier_data_prep(args)
-        if args.reduced_stats:
-            train_len = int(len(X_train)*0.8)
-            X_train = X_train[:train_len]
-            Y_train = Y_train[:train_len]
-            train_weights = train_weights[:train_len]
     for i in range(args.start_at_run, args.N_runs):
         print()
         print("------------------------------------------------------")
@@ -106,13 +102,10 @@ if not args.scan_2D:
         print("Classifier run no. ", i)
         print()
         args.set_seed = i
-        if args.randomize_seed:
+        if args.randomize_seed or args.randomize_signal is not None:
+            if args.randomize_signal:
+                args.randomize_signal=i
             X_train, Y_train, train_weights, X_test, Y_test = dp.classifier_data_prep(args)
-            if args.reduced_stats:
-                train_len = int(len(X_train)*0.8)
-                X_train = X_train[:train_len]
-                Y_train = Y_train[:train_len]
-                train_weights = train_weights[:train_len]
         BDT.classifier_training(X_train, Y_train, train_weights, X_test, Y_test, args, i)
 
 else: 
