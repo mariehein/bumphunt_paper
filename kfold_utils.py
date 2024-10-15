@@ -266,11 +266,15 @@ def k_fold_data_prep(args, samples=None):
     X_test = X_t[indices[4]]
 
     weights_train = np.concatenate((np.ones(len(X_train)), samples_weights), axis=0)
+    print("SR train:", sum(X_train[:,-1]))
+    print("BT train:", sum(samples_train[:,-1]))
     X_train = np.concatenate((X_train[:,1:args.inputs+1],samples_train[:,1:args.inputs+1]),axis=0)
     Y_train = np.concatenate((np.ones(len(X_train)-len(samples_train)),np.zeros(len(samples_train))),axis=0)	
 
     Y_test = X_test[:,-1]
+    print("SR test:", sum(Y_test))
     X_test = X_test[:, 1:args.inputs+1]
+    print("BT test:", sum(samples_test[:,-1]))
     samples_test = samples_test[:,1:args.inputs+1]
     if not args.Herwig:
         signal_test = inner_extra_sig[:,1:args.inputs+1]
@@ -291,4 +295,6 @@ def k_fold_data_prep(args, samples=None):
 
     np.save(args.directory+"Y_test.npy", Y_test)
 
+    if args.Herwig:
+        signal_test = np.ones((1,args.inputs))
     return X_train, Y_train, X_test, Y_test, samples_test, signal_test, weights_train

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 BH_percentiles = [1e-2, 1e-3, 1e-4]
 plotting_direc = "plots/final/"
+plotting_direc_svg = "plots/svg/"
 
 plt.rcParams['pgf.rcfonts'] = False
 plt.rcParams['font.serif'] = []
@@ -182,9 +183,55 @@ def plotting(rel_results, true_results, name, min=None, max=None, plotting_direc
     plt.subplots_adjust(bottom=0.15, left= 0.19, top = 0.92, right = 0.965)
 
     plt.savefig(plotting_directory+name+".pdf")
+    plt.savefig(plotting_direc_svg+name+".svg")
 
 
-def plotting_error(rel_results, name, min=None, max=None, plotting_directory=None):
+def plotting_all(rel_results, true_results, name, min=None, max=None, plotting_directory=None, colors_custom = None, labels=None, BH_perc=1, sort=True):
+    if plotting_directory is None:
+        plotting_directory=plotting_direc
+    plt.figure()
+    x = range(1,10)
+    plt.axhline(5, color="black", linestyle="--", label="5$\sigma$")
+    plt.axhline(0, color="black", label="0$\sigma$")
+
+    if sort:
+        print("yay")
+        ind = np.argsort(np.array(labels))
+        #rel_results[BH_perc] = rel_results[BH_perc, :, ind].T 
+        #labels = np.array(labels)[ind]
+        print(labels)
+    else:
+        ind = range(len(labels))
+            
+    for i in range(10):
+        if labels is None:
+            label = str(ind[i])
+        else: 
+            label= str(int(labels[ind[i]]))
+        if colors_custom is not None:
+            plt.errorbar(x, rel_results[BH_perc, :, ind[i]], label=label, color=colors_custom[ind[i]])
+        else:
+            plt.errorbar(x, rel_results[BH_perc, :, ind[i]], label=label)
+        #plt.errorbar(x, np.mean(rel_results[1],axis=-1), yerr = np.std(rel_results[1], axis=-1,ddof=1), label=r"$\epsilon_B$="+str(perc), fmt='o', color=colors_results[j])
+        #plt.errorbar(x, np.mean(true_results[j],axis=-1), yerr = np.std(rel_results[j], axis=-1,ddof=1), fmt='o', color=colors_true[j])
+
+    if min is not None and max is not None:
+        plt.ylim(min,max)
+    elif min is not None:
+        plt.ylim(bottom=min)
+    elif max is not None:
+        plt.ylim(top=max)
+
+    plt.grid()
+    plt.ylabel(r"Significance")
+    plt.xlabel(r"Sliding window #")
+    plt.legend(loc="upper right")
+    plt.subplots_adjust(bottom=0.15, left= 0.19, top = 0.92, right = 0.965)
+
+    plt.savefig(plotting_directory+name+"_all.pdf")
+    
+
+def plotting_error(rel_results, name, min=None, max=None, plotting_directory=None, log=False):
     if plotting_directory is None:
         plotting_directory=plotting_direc
     plt.figure()
@@ -196,7 +243,7 @@ def plotting_error(rel_results, name, min=None, max=None, plotting_directory=Non
         #plt.errorbar(x, np.mean(true_results[j],axis=-1), yerr = np.std(rel_results[j], axis=-1,ddof=1), fmt='o', color=colors_true[j])
         
     plt.grid()
-    plt.ylabel(r"R (relative systematic)")
+    plt.ylabel(r"$\delta_{sys,n}$ (Relative systematic)")
     plt.xlabel(r"Sliding window #")
     plt.legend(loc="upper right")
     plt.subplots_adjust(bottom=0.15, left= 0.19, top = 0.92, right = 0.965)
@@ -206,5 +253,8 @@ def plotting_error(rel_results, name, min=None, max=None, plotting_directory=Non
         plt.ylim(bottom=min)
     elif max is not None:
         plt.ylim(top=max)
+    if log: 
+        plt.yscale("log")
 
     plt.savefig(plotting_directory+name+"_error.pdf")
+    plt.savefig(plotting_direc_svg+name+"_error.svg")
