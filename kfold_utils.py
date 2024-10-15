@@ -3,17 +3,23 @@ import pandas as pd
 import warnings
 
 class no_logit_norm:
-	def __init__(self,array):
-		self.mean = np.mean(array, axis=0)
-		self.std = np.std(array, axis=0)
+    """
+    Normalisation class (saves mean and standard deviation for easy application across datasets)
+    """
+    def __init__(self,array):
+        self.mean = np.mean(array, axis=0)
+        self.std = np.std(array, axis=0)
 
-	def forward(self,array0):
-		return (np.copy(array0)-self.mean)/self.std, np.ones(len(array0),dtype=bool)
+    def forward(self,array0):
+    	return (np.copy(array0)-self.mean)/self.std, np.ones(len(array0),dtype=bool)
 
-	def inverse(self,array0):
-		return np.copy(array0)*self.std+self.mean
+    def inverse(self,array0):
+    	return np.copy(array0)*self.std+self.mean
 
 def make_features_baseline(features, label_arr):
+    """
+    Make baseline feature set
+    """
     E_part = np.sqrt(features[:,0]**2+features[:,1]**2+features[:,2]**2+features[:,3]**2)+np.sqrt(features[:,7]**2+features[:,8]**2+features[:,9]**2+features[:,10]**2)
     p_part2 = (features[:,0]+features[:,7])**2+(features[:,1]+features[:,8])**2+(features[:,2]+features[:,9])**2
     m_jj = np.sqrt(E_part**2-p_part2)
@@ -25,48 +31,54 @@ def make_features_baseline(features, label_arr):
     return np.nan_to_num(feat1*ind+feat2*(np.ones(len(ind))-ind)).T
 
 def make_features_extended12(features_j1, features_j2, label_arr, set):
-	E_part2 = np.sqrt(features_j1[:,0]**2+features_j1[:,1]**2+features_j1[:,2]**2+features_j1[:,3]**2)+np.sqrt(features_j2[:,0]**2+features_j2[:,1]**2+features_j2[:,2]**2+features_j2[:,3]**2)
-	p_part2 = (features_j1[:,0]+features_j2[:,0])**2 + (features_j1[:,1]+features_j2[:,1])**2 + (features_j1[:,2]+features_j2[:,2])**2
-	m_jj = np.sqrt(E_part2**2-p_part2)
+    """
+    Make extended feature sets 1 and 2 from 2309.13111
+    """
+    E_part2 = np.sqrt(features_j1[:,0]**2+features_j1[:,1]**2+features_j1[:,2]**2+features_j1[:,3]**2)+np.sqrt(features_j2[:,0]**2+features_j2[:,1]**2+features_j2[:,2]**2+features_j2[:,3]**2)
+    p_part2 = (features_j1[:,0]+features_j2[:,0])**2 + (features_j1[:,1]+features_j2[:,1])**2 + (features_j1[:,2]+features_j2[:,2])**2
+    m_jj = np.sqrt(E_part2**2-p_part2)
 
-	ind_not = np.argwhere(features_j1[:,3]> features_j2[:,3])
-	f_j1 = np.copy(features_j1)
-	features_j1[ind_not] = features_j2[ind_not]
-	features_j2[ind_not] = f_j1[ind_not]
-	del f_j1	
+    ind_not = np.argwhere(features_j1[:,3]> features_j2[:,3])
+    f_j1 = np.copy(features_j1)
+    features_j1[ind_not] = features_j2[ind_not]
+    features_j2[ind_not] = f_j1[ind_not]
+    del f_j1	
 
-	if set=="extended2":
-		with warnings.catch_warnings():
-			warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
-			warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
-			features = np.zeros((len(m_jj), 14))
-			features[:,0] = m_jj * 1e-3
-			features[:,1] = features_j1[:, 3] * 1e-3
-			features[:,2] = (features_j2[:, 3] - features_j1[:, 3]) *1e-3
-			for i in range(5):
-				features[:,3+2*i] = features_j1[:,4+i]
-				features[:,3+2*i+1] = features_j2[:,4+i]
-			features[:,-1] = label_arr
-	elif set=="extended1":
-		with warnings.catch_warnings():
-			warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
-			warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
-			inputs = 12
-			features = np.zeros((len(m_jj), inputs))
-			features[:,0] = m_jj * 1e-3
-			features[:,1] = features_j1[:, 3] * 1e-3
-			features[:,2] = (features_j2[:, 3] - features_j1[:, 3]) *1e-3
-			for i in range(4):
-				features[:,3+2*i] = features_j1[:,5+i]/features_j1[:,4+i]
-				features[:,3+2*i+1] = features_j2[:,5+i]/features_j2[:,4+i]
-			features[:,-1] = label_arr
+    if set=="extended2":
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+            warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+            features = np.zeros((len(m_jj), 14))
+            features[:,0] = m_jj * 1e-3
+            features[:,1] = features_j1[:, 3] * 1e-3
+            features[:,2] = (features_j2[:, 3] - features_j1[:, 3]) *1e-3
+            for i in range(5):
+                features[:,3+2*i] = features_j1[:,4+i]
+                features[:,3+2*i+1] = features_j2[:,4+i]
+            features[:,-1] = label_arr
+    elif set=="extended1":
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+            warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+            inputs = 12
+            features = np.zeros((len(m_jj), inputs))
+            features[:,0] = m_jj * 1e-3
+            features[:,1] = features_j1[:, 3] * 1e-3
+            features[:,2] = (features_j2[:, 3] - features_j1[:, 3]) *1e-3
+            for i in range(4):
+                features[:,3+2*i] = features_j1[:,5+i]/features_j1[:,4+i]
+                features[:,3+2*i+1] = features_j2[:,5+i]/features_j2[:,4+i]
+            features[:,-1] = label_arr
 
-	return np.nan_to_num(features)
+    return np.nan_to_num(features)
 
 def make_features_extended3(pandas_file, label_arr):
+    """
+    Make extended feature set 3 from 2309.13111
+    """
     features_j1 = np.array(pandas_file[['pxj1', 'pyj1', 'pzj1', 'mj1']], dtype=np.float32)
     features_j2 = np.array(pandas_file[['pxj2', 'pyj2', 'pzj2', 'mj2']], dtype=np.float32)
-    
+
     E_part2 = np.sqrt(features_j1[:,0]**2+features_j1[:,1]**2+features_j1[:,2]**2+features_j1[:,3]**2)+np.sqrt(features_j2[:,0]**2+features_j2[:,1]**2+features_j2[:,2]**2+features_j2[:,3]**2)
     p_part2 = (features_j1[:,0]+features_j2[:,0])**2 + (features_j1[:,1]+features_j2[:,1])**2 + (features_j1[:,2]+features_j2[:,2])**2
     m_jj = np.sqrt(E_part2**2-p_part2)
@@ -104,6 +116,9 @@ def make_features_extended3(pandas_file, label_arr):
     return np.nan_to_num(features)
 
 def file_loading(filename, args, labels=True, signal=0):
+    """
+    Load pandas data set file and calculate features used for classification as specified in args.input_set
+    """
     pandas_file = pd.read_hdf(filename)
     if labels:
         label_arr = np.array(pandas_file['label'], dtype=float)
@@ -124,18 +139,30 @@ def file_loading(filename, args, labels=True, signal=0):
     return features
 
 def DR(filename, labels=True):
-	if labels:
-		features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
-	else: 
-		features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
-		features = np.concatenate((features,np.zeros((len(features),1))),axis=1)
-	Dphi = np.arccos((features[:,0]*features[:,7]+features[:,1]*features[:,8])/(np.sqrt(features[:,1]**2+features[:,0]**2)*np.sqrt(features[:,7]**2+features[:,8]**2)))
-	eta1 = np.arcsinh(features[:,2]/np.sqrt(features[:,1]**2+ features[:,0]**2))
-	eta2 = np.arcsinh(features[:,9]/np.sqrt(features[:,7]**2+ features[:,8]**2))
-	DR = np.sqrt((Dphi)**2 + (eta1-eta2)**2)
-	return DR
+    """
+    Calculate DeltaR if args.include_DeltaR is true
+    """
+    if labels:
+        features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
+    else: 
+        features = np.array(pd.read_hdf(filename)[['pxj1', 'pyj1', 'pzj1', 'mj1', 'tau1j1_1', 'tau2j1_1', 'tau3j1_1', 'pxj2', 'pyj2', 'pzj2', 'mj2', 'tau1j2_1', 'tau2j2_1', 'tau3j2_1']],dtype=float)
+        features = np.concatenate((features,np.zeros((len(features),1))),axis=1)
+    Dphi = np.arccos((features[:,0]*features[:,7]+features[:,1]*features[:,8])/(np.sqrt(features[:,1]**2+features[:,0]**2)*np.sqrt(features[:,7]**2+features[:,8]**2)))
+    eta1 = np.arcsinh(features[:,2]/np.sqrt(features[:,1]**2+ features[:,0]**2))
+    eta2 = np.arcsinh(features[:,9]/np.sqrt(features[:,7]**2+ features[:,8]**2))
+    DR = np.sqrt((Dphi)**2 + (eta1-eta2)**2)
+    return DR
 
 def k_fold_data_prep(args, samples=None):
+    """ 
+    Return fully preprocessed dataset separated into training and test set as well as sample test set, singal test set and training weights
+    as X_train, Y_train, X_test, Y_test, samples_test, signal_test, weights_train
+
+    Function loads data, feeds correct amount of signal into data set, initializes background template, does k-fold cross validation, and 
+    normalization based on provided args. 
+    """
+
+    # File Loading and calculation of features, separation of background and signal (note Herwig contains no signal)
     data = file_loading(args.data_file, args)
     if args.mode=="IAD" or args.mode=="IAD_joep":
         extra_bkg = file_loading(args.extrabkg_file, args, labels=False)
@@ -166,6 +193,7 @@ def k_fold_data_prep(args, samples=None):
     else: 
         print(len(bkg))
 
+    # Loading of samples files for cathode
     if args.mode=="cathode":
         samples_train = np.load(args.samples_file)
         if args.samples_ranit:
@@ -175,8 +203,9 @@ def k_fold_data_prep(args, samples=None):
             samples_train = samples_train[mask]
         samples_train = np.concatenate((samples_train, np.zeros((len(samples_train),1))), axis=1)
 
+    # Specifying signal number and making dataset containing the correct number of signal events
     if args.signal_number is not None:
-        n_sig=args.signal_number
+        n_sig = args.signal_number
     elif args.signal_percentage is None:
         n_sig = 1000
     else:
@@ -199,10 +228,12 @@ def k_fold_data_prep(args, samples=None):
         np.random.seed(args.set_seed)
         np.random.shuffle(data_all)   
 
+    # Separate data into SR and SB
     innermask = (data_all[:,0]>args.minmass) & (data_all[:,0]<args.maxmass)
     innerdata = data_all[innermask]
     outerdata = data_all[~innermask]
     np.save(args.directory+"innerdata.npy",innerdata)
+    # For cathode data-driven estimate of delta_sys, switch training data to SB
     if args.mode == "cathode" and args.cathode_on_SBs:
         N = len(innerdata)
         if args.cathode_on_SSBs:
@@ -214,15 +245,10 @@ def k_fold_data_prep(args, samples=None):
             np.random.shuffle(innerdata)
             innerdata = innerdata[:N]
 
-    elif args.mode=="cathode" and args.cathode_on_DE:
-        innerdata = np.load(args.DE_data_file)
-    elif not args.mode == "cathode" and args.cathode_on_DE:
-        raise ValueError("Only cathode supported with run on DE")
-
-
     if args.samples_weights is not None:
         samples_weights = np.load(args.samples_weights)
 
+    #Make Background template for cwola and IAD
     if args.mode=="cwola":
         mask = (outerdata[:,0]>args.minmass-args.ssb_width) & (outerdata[:,0]<args.maxmass+args.ssb_width)
         samples_train = outerdata[mask]
@@ -238,8 +264,10 @@ def k_fold_data_prep(args, samples=None):
         extra_bkg = extra_bkg[innermask]
         samples_train = extra_bkg[:len(innerdata)]
 
+    #k fold cross validation help
     indices = np.roll(np.array(range(5)),args.fold_number)
 
+    # split background template into train and test set 
     if args.mode=="cathode":
         if args.fixed_oversampling is not None:
             args.N_train = len(innerdata)*4
@@ -265,6 +293,7 @@ def k_fold_data_prep(args, samples=None):
     X_train = np.concatenate((X_t[indices[0]], X_t[indices[1]], X_t[indices[2]], X_t[indices[3]]))
     X_test = X_t[indices[4]]
 
+    # calculate training weights
     weights_train = np.concatenate((np.ones(len(X_train)), samples_weights), axis=0)
     print("SR train:", sum(X_train[:,-1]))
     print("BT train:", sum(samples_train[:,-1]))
@@ -284,6 +313,8 @@ def k_fold_data_prep(args, samples=None):
     X_train = X_train[inds]
     Y_train = Y_train[inds]
     weights_train = weights_train[inds]
+    
+    # normalisation of train and test set
     if args.cl_norm:
         normalisation = no_logit_norm(X_train)
         X_train, _ = normalisation.forward(X_train)

@@ -9,60 +9,59 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 #For SIC curve reproduction only these 5 option need to be changed
-parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode", "IAD_scan", "IAD_joep"], required=True)
-parser.add_argument('--fold_number', type=int, required=True)
-parser.add_argument('--window_number', type=int, required=True)
-parser.add_argument('--directory', type=str, required=True)
-parser.add_argument('--input_set', type=str, choices=["baseline","extended1","extended2","extended3"], required=True)
+parser.add_argument('--mode', type=str, choices=["IAD", "cwola", "cathode", "IAD_scan", "IAD_joep"], required=True, help="Choose background template mode")
+parser.add_argument('--fold_number', type=int, required=True, help="fold number for k-fold cross validation, should be between 0 and 4")
+parser.add_argument('--window_number', type=int, required=True, help="window number used to specify minmass and maxmass, between 1 and 9")
+parser.add_argument('--directory', type=str, required=True, help="save directory")
+parser.add_argument('--input_set', type=str, choices=["baseline","extended1","extended2","extended3"], required=True, help="input feature set")
+parser.add_argument('--include_DeltaR', default=False, action="store_true", help="appending Delta R to input feature set")
+parser.add_argument('--signal_number', type=int, default=None, help="Number of signal events in data set")
 
 #Data files
 parser.add_argument('--data_file', type=str, default="/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_v2.extratau_2.features.h5")
 parser.add_argument('--extrabkg_file', type=str, default="/hpcwork/rwth0934/LHCO_dataset/extratau2/events_anomalydetection_DelphesPythia8_v2_qcd_extra_inneronly_combined_extratau_2_features.h5")
-parser.add_argument('--signal_file', type=str, default=None)
-parser.add_argument('--DE_data_file', type=str, default=None)
-parser.add_argument('--three_pronged', default=False, action="store_true")
-parser.add_argument('--samples_file', default=None, type=str)
-parser.add_argument('--samples_file_array', default=False, action="store_true")
-parser.add_argument('--samples_file_start', default=None, type=str)
-parser.add_argument('--samples_file_ending', default=None, type=str)
-parser.add_argument('--samples_ranit', default=False, action="store_true")
-parser.add_argument('--samples_weights', default=None, type=str)
+parser.add_argument('--signal_file', type=str, default=None, help="Specify different signal file")
+parser.add_argument('--three_pronged', default=False, action="store_true", help="Activate three-pronged signal file")
+parser.add_argument('--samples_file', default=None, type=str, help="Samples file for cathode, assumed as .npy")
+parser.add_argument('--samples_file_array', default=False, action="store_true", help="Independent samples file per classiifer")
+parser.add_argument('--samples_file_start', default=None, type=str, help="start of samples file if --sample_file_array")
+parser.add_argument('--samples_file_ending', default=None, type=str, help="end of samples file if --sample_file_array")
+parser.add_argument('--samples_ranit', default=False, action="store_true", help="Activate if samples contain labels")
+parser.add_argument('--samples_weights', default=None, type=str, help="reweight samples")
 parser.add_argument('--extra_signal_predictions', default=False, action="store_true")
 
 #Dataset preparation
-parser.add_argument('--signal_percentage', type=float, default=None, help="Second in priority order")
-parser.add_argument('--signal_number', type=int, default=None, help="Top priority")
-parser.add_argument('--fixed_oversampling', type=int, default=4)
-parser.add_argument('--N_train', type=int, default=320000)
-parser.add_argument('--minmass', type=float, default=3.3)#modified based on window number
-parser.add_argument('--maxmass', type=float, default=3.7)#modified based on window number
-parser.add_argument('--ssb_width', type=float, default=0.2)
-parser.add_argument('--cl_norm', default=True, action="store_false")
-parser.add_argument('--set_seed', type=int, default=1)
-parser.add_argument('--inputs', type=int, default=4)
-parser.add_argument('--inputs_custom', type=int, default=None)
-parser.add_argument('--randomize_seed', default=False, action="store_true")
-parser.add_argument('--randomize_signal', default=None, type=int)
-parser.add_argument('--include_DeltaR', default=False, action="store_true")
-parser.add_argument('--Herwig', default=False, action="store_true")
-parser.add_argument('--Joep', default=False, action="store_true")
-parser.add_argument('--cathode_on_SBs', default=False, action="store_true")
-parser.add_argument('--cathode_on_SSBs', default=False, action="store_true")
-parser.add_argument('--cathode_on_DE', default=False, action='store_true')
-parser.add_argument('--select_SB_data', default=True, action='store_false')
+parser.add_argument('--signal_percentage', type=float, default=None, help="alternate way of specifying signal number, second priority")
+parser.add_argument('--fixed_oversampling', type=int, default=4, help="Oversampling factor for cathode")
+parser.add_argument('--N_train', type=int, default=320000, help="Oversampling specified as total event number")
+parser.add_argument('--minmass', type=float, default=3.3, help="overwritten by window number")
+parser.add_argument('--maxmass', type=float, default=3.7, help="overwritten by window number")
+parser.add_argument('--ssb_width', type=float, default=0.2, help="SSB width for CWoLa")
+parser.add_argument('--cl_norm', default=True, action="store_false", help="Norming data for classification")
+parser.add_argument('--set_seed', type=int, default=1, help="Seed for data set preparation, does not affect signal events unless --randomize_signal is not None")
+parser.add_argument('--inputs', type=int, default=4, help="specified internally")
+parser.add_argument('--inputs_custom', type=int, default=None, help="specified internally")
+parser.add_argument('--randomize_seed', default=False, action="store_true", help="for dataset randomization")
+parser.add_argument('--randomize_signal', default=None, type=int, help="for signal event randomization")
+
+#Select data on which to run
+parser.add_argument('--Herwig', default=False, action="store_true", help="MC runs")
+parser.add_argument('--Joep', default=False, action="store_true", help="reproduction of LHCO dataset")
+parser.add_argument('--cathode_on_SBs', default=False, action="store_true", help="data-driven estimate of deltasys for cathode")
+parser.add_argument('--cathode_on_SSBs', default=False, action="store_true", help="data-driven estimate of deltasys using only SSB")
+parser.add_argument('--select_SB_data', default=True, action='store_false', help="subsampling of SB data for data-driven estimate of deltasys")
 
 
 #General classifier Arguments
-parser.add_argument('--N_runs', type=int, default=10)
-parser.add_argument('--ensemble_over', default=50, type=int)
-parser.add_argument('--start_at_run', type=int, default=0)
+parser.add_argument('--N_runs', type=int, default=10, help="number of independent classifier runs")
+parser.add_argument('--ensemble_over', default=50, type=int, help="number of ensembled classifiers")
+parser.add_argument('--start_at_run', type=int, default=0, help="allows for warm restart between independent classifier runs")
 
 args = parser.parse_args()
 
+# Change options if dependent on one another
 if args.cathode_on_SSBs:
     args.cathode_on_SBs = True
-    #args.select_SB_data = False
-
 
 if not os.path.exists(args.directory):
 	os.makedirs(args.directory)
@@ -100,6 +99,7 @@ if args.mode=="IAD" and args.window_number!=5:
 
 print(args)
 
+# make training set and run classifiers
 if not args.randomize_seed and not args.randomize_signal and not args.samples_file_array:
     X_train, Y_train, X_test, Y_test, samples_test, signal_test, train_weights = dp.k_fold_data_prep(args)
 for i in range(args.start_at_run, args.N_runs):

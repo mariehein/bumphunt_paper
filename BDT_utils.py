@@ -4,6 +4,9 @@ from pathlib import Path
 from datetime import datetime
 
 def add_to_file(file, arr):
+	"""
+	Appending array to file if array in file does not have the same length
+	"""
 	if Path(file).is_file():
 		f = np.load(file)
 		Nf = len(f[0])
@@ -19,6 +22,9 @@ def add_to_file(file, arr):
 		np.save(file, np.reshape(arr, (1,len(arr))))
 
 def classifier_training(X_train, Y_train, X_test, Y_test, samples_test, signal_test, train_weights, args, run):
+	"""
+	Classifier training, calculation and saving of predictions
+	"""
 	test_results = np.zeros((args.ensemble_over,len(X_test)))
 	samples_results = np.zeros((args.ensemble_over, len(samples_test)))
 	signal_results = np.zeros((args.ensemble_over, len(signal_test)))
