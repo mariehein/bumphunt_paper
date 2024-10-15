@@ -45,4 +45,6 @@ Afterwards, both the $\delta_\text{sys}$ and the significance plots can be produ
 
 ## Other datasets
 
-The datasets used in this paper are 
+The datasets used in this paper are based on the LHC Olympics 2020. Runs on "data" should only require the LHCO R&D dataset included in https://zenodo.org/record/6466204. Note that the compatibility with these files was not tested as a file with a larger feature set (found in https://github.com/uhh-pd-ml/treebased_anomaly_detection) was used. 
+
+The Herwig data is from the LHCO Black Box 2. The correct feature set for this code can be found in the "data" folder as can the LHCO dataset reproduction used for the IAD runs. Because of this, cloning this repository will require `git-lfs` to be installed on the system. 
