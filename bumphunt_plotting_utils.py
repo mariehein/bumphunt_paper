@@ -22,6 +22,9 @@ plt.rcParams['legend.fontsize'] = 12
 #plt.rcParams['legend.frameon'] = True
 
 def sig(N, b, err):
+    """
+    Complicated significance formula calculation where N=N_obs, b = N_exp and err=delta_sys
+    """
     if err[0]==0:
         s=N-b
         x=N*np.log(1+s/b)-s
@@ -38,16 +41,23 @@ def sig(N, b, err):
     return np.sqrt(x)
 
 def significances(N_after, N, N_samples_after, eff, err, err_err):
+    """
+    Calculate S, delta_sys,n and sigma_stat
+
+    N_after = N_obs, N = N_SR, eff = epsilon_B, err=delta_sys, err_err=sigma_sys
+    """
     N_b_exp = eff*N*(1+err)
     stat_err = np.sqrt(1/N_b_exp+1/N_samples_after)
     samples_err = np.sqrt(1/N_samples_after)
     formular_err = N_b_exp * np.sqrt(samples_err**2+err_err**2)
-    full_err = N_b_exp * np.sqrt(stat_err**2+err**2)
     rel_results = sig(N_after, N_b_exp, formular_err)
     rel_error = (N_after-N*eff)/(eff*N)
     return rel_results, rel_error, stat_err
 
 def bump_hunt(folder, err=None, err_err=None, runs=10):
+    """
+    Calculate significance and delta_sys,n and sigma_stat for all 9 windows
+    """
 
     results = np.zeros((len(BH_percentiles),9,runs))
     true_results =  np.zeros((len(BH_percentiles),9,runs))
@@ -75,6 +85,10 @@ def bump_hunt(folder, err=None, err_err=None, runs=10):
 colors_results = ["blue", "red", "orange"]
 
 def plotting(rel_results, name, min=None, max=None, plotting_directory=None):
+    """
+    Plot significances S    
+    """
+
     if plotting_directory is None:
         plotting_directory=plotting_direc
     plt.figure()
@@ -102,6 +116,10 @@ def plotting(rel_results, name, min=None, max=None, plotting_directory=None):
 
 
 def plotting_error(rel_results, name, min=None, max=None, plotting_directory=None):
+    """
+    Plot delta_sys,n
+    """
+
     if plotting_directory is None:
         plotting_directory=plotting_direc
     plt.figure()
