@@ -84,7 +84,7 @@ def bump_hunt(folder, err=None, err_err=None, runs=10):
 
 colors_results = ["blue", "red", "orange"]
 
-def plotting(rel_results, name, min=None, max=None, plotting_directory=None):
+def plotting(rel_results, name, min=None, max=None, plotting_directory=None, save=True):
     """
     Plot significances S    
     """
@@ -111,11 +111,12 @@ def plotting(rel_results, name, min=None, max=None, plotting_directory=None):
     plt.legend(loc="upper right")
     plt.subplots_adjust(bottom=0.15, left= 0.19, top = 0.92, right = 0.965)
 
-    plt.savefig(plotting_directory+name+".pdf")
-    plt.savefig(plotting_direc_svg+name+".svg")
+    if save:
+        plt.savefig(plotting_directory+name+".pdf")
+        plt.savefig(plotting_direc_svg+name+".svg")
 
 
-def plotting_error(rel_results, name, min=None, max=None, plotting_directory=None):
+def plotting_error(rel_results, name, min=None, max=None, plotting_directory=None, save=True):
     """
     Plot delta_sys,n
     """
@@ -141,5 +142,6 @@ def plotting_error(rel_results, name, min=None, max=None, plotting_directory=Non
     elif max is not None:
         plt.ylim(top=max)
 
-    plt.savefig(plotting_directory+name+"_error.pdf")
-    plt.savefig(plotting_direc_svg+name+"_error.svg")
+    if save:
+        plt.savefig(plotting_directory+name+"_error.pdf")
+        plt.savefig(plotting_direc_svg+name+"_error.svg")
