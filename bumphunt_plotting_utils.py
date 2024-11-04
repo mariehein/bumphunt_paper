@@ -131,7 +131,7 @@ def plotting_error(rel_results, name, min=None, max=None, plotting_directory=Non
         plt.plot(x, np.max(rel_results[j], axis=-1), 'x', color=colors_results[j])
         
     plt.grid()
-    plt.ylabel(r"$\delta_{sys,n}$ (Relative systematic)")
+    plt.ylabel(r"$\delta_{sys,n}$")
     plt.xlabel(r"Sliding window #")
     plt.legend(loc="upper right")
     plt.subplots_adjust(bottom=0.15, left= 0.19, top = 0.92, right = 0.965)
