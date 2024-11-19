@@ -82,8 +82,8 @@ def deltasys_single_window(folder, window, BH_percentiles, err=0, runs=10, turn_
 
     for fold in range(5): 
         f = folder +"fold"+str(fold)+"/"
-        samples_preds = np.load(f+"samples_preds.npy")[-10:]
-        data_preds = np.load(f+"test_preds.npy")[-10:]
+        samples_preds = np.load(f+"samples_preds.npy")[-runs:]
+        data_preds = np.load(f+"test_preds.npy")[-runs:]
         for j, perc in enumerate(BH_percentiles):
             for i in range(len(samples_preds)):
                 N_samples_after[fold, j, i], N_samples[fold, j, i], N_after[fold, j,i], N[fold, j, i] = calc_and_apply_threshold(samples_preds[i], data_preds[i], perc)
